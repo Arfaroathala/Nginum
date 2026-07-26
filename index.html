@@ -282,6 +282,31 @@ dialog::backdrop{background:rgba(27,42,32,.45)}
 .pe-chk input{width:20px;height:20px;accent-color:var(--leaf)}
 .adm-hint{background:var(--bg);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--muted);margin-top:10px}
 
+/* ===== MODUL: LAPORAN (OWNER) ===== */
+.rep-filter{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.rep-dates{display:flex;gap:8px;align-items:center}
+.rep-dates input{flex:1;min-height:44px;padding:8px 10px;border:1.5px solid var(--line);border-radius:12px;background:#fff;font-size:14px}
+.rep-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+.rep-card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
+.rep-card.big{grid-column:1/-1;background:var(--leaf);color:#fff}
+.rep-card .rc-l{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.03em;text-transform:uppercase}
+.rep-card.big .rc-l{color:rgba(255,255,255,.8)}
+.rep-card .rc-v{font-size:20px;font-weight:800;margin-top:2px;letter-spacing:-.01em}
+.rep-card.big .rc-v{font-size:28px}
+.rep-sec{margin-top:12px}
+.rep-title{font-size:14px;font-weight:800;margin-bottom:8px}
+.bar-row{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12.5px}
+.bar-row .bl{width:44px;color:var(--muted);font-weight:700}
+.bar-row .bt{flex:1;background:var(--bg);border-radius:6px;height:16px;overflow:hidden}
+.bar-row .bar{height:100%;background:var(--leaf);border-radius:6px;min-width:2px}
+.bar-row .bv{width:86px;text-align:right;font-weight:700}
+.rep-tbl{width:100%;font-size:13px;border-collapse:collapse}
+.rep-tbl th{text-align:left;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;padding:6px 0;border-bottom:1.5px solid var(--line)}
+.rep-tbl td{padding:7px 0;border-bottom:1px dashed var(--line)}
+.rep-tbl tr:last-child td{border-bottom:0}
+.rep-tbl .tr-num{text-align:right;font-weight:700}
+@media (min-width:900px){.rep-cards{grid-template-columns:repeat(3,1fr)}.rep-card.big{grid-column:auto}}
+
 /* ===== MODUL: RESPONSIVE ===== */
 @media (min-width:900px){
   .bottomnav{top:0;bottom:auto;left:auto;right:0;width:auto;position:static}
@@ -415,15 +440,29 @@ dialog::backdrop{background:rgba(27,42,32,.45)}
     </div>
   </main>
 
-  <!-- ===== MODUL: VIEW LAPORAN (placeholder Stage 5, owner) ===== -->
+  <!-- ===== MODUL: VIEW LAPORAN (OWNER) ===== -->
   <main id="view-laporan" class="view hidden">
     <h2>Laporan</h2>
-    <p class="sub">Penjualan, breakdown & export Excel</p>
-    <div class="card"><div class="empty">
-      <div class="emo">📊</div>
-      <b>Laporan dipasang di Stage 5-6</b>
-      <small>Bruto/neto/AOV, per produk & varian, per jam, log void/diskon, export .xlsx.</small>
-    </div></div>
+    <p class="sub">Transaksi void otomatis dikeluarin dari omzet</p>
+    <div class="rep-filter">
+      <div class="cat-chips" id="rep-presets">
+        <button class="chip-cat active" data-p="today">Hari ini</button>
+        <button class="chip-cat" data-p="yesterday">Kemarin</button>
+        <button class="chip-cat" data-p="7d">7 hari</button>
+        <button class="chip-cat" data-p="month">Bulan ini</button>
+        <button class="chip-cat" data-p="30d">30 hari</button>
+      </div>
+      <div class="rep-dates">
+        <input type="date" id="rep-a">
+        <span style="color:var(--muted)">s/d</span>
+        <input type="date" id="rep-b">
+        <button class="btn btn-outline" id="btn-rep-go" style="min-height:44px;padding:0 16px">Terapkan</button>
+      </div>
+    </div>
+    <div id="laporan-body"><div class="empty"><div class="spinner"></div></div></div>
+    <div class="shift-actions">
+      <button class="btn btn-citrus" id="btn-export" disabled>⬇ Export Excel — Stage 6</button>
+    </div>
   </main>
 
   <nav class="bottomnav" id="bottomnav"></nav>
@@ -940,6 +979,7 @@ function setView(id) {
   if (id === 'kasir') renderKasirGate();
   if (id === 'riwayat') loadRiwayat();
   if (id === 'menu') loadAdmin();
+  if (id === 'laporan') loadLaporan();
 }
 function renderUserChip() {
   const chip = $('chip-user');
@@ -2083,6 +2123,207 @@ $('btn-pin-save').addEventListener('click', async () => {
     if (err.message !== 'SESI_INVALID') toast(err.message, true);
   } finally { btn.disabled = false; }
 });
+
+/* ===== MODUL: LAPORAN (OWNER) ===== */
+const REP = { a: null, b: null, preset: 'today', raw: null };
+function wibShift(dateStr, offsetDays) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + offsetDays);
+  return dt.toISOString().slice(0, 10);
+}
+const fmtTgl = (s) => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
+function applyPreset(p) {
+  REP.preset = p;
+  const t = todayWIB();
+  if (p === 'today') { REP.a = t; REP.b = t; }
+  if (p === 'yesterday') { REP.a = wibShift(t, -1); REP.b = wibShift(t, -1); }
+  if (p === '7d') { REP.a = wibShift(t, -6); REP.b = t; }
+  if (p === '30d') { REP.a = wibShift(t, -29); REP.b = t; }
+  if (p === 'month') { REP.a = t.slice(0, 8) + '01'; REP.b = t; }
+  $('rep-a').value = REP.a;
+  $('rep-b').value = REP.b;
+  document.querySelectorAll('#rep-presets button').forEach((b) =>
+    b.classList.toggle('active', b.dataset.p === p));
+}
+$('rep-presets').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-p]');
+  if (!b) return;
+  applyPreset(b.dataset.p);
+  loadLaporan(true);
+});
+$('btn-rep-go').addEventListener('click', () => {
+  const a = $('rep-a').value, b = $('rep-b').value;
+  if (!a || !b) { toast('Isi kedua tanggal', true); return; }
+  if (a > b) { toast('Tanggal awal harus sebelum akhir', true); return; }
+  REP.a = a; REP.b = b; REP.preset = null;
+  document.querySelectorAll('#rep-presets button').forEach((x) => x.classList.remove('active'));
+  loadLaporan(true);
+});
+async function fetchIn(table, col, ids, select) {
+  const out = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data, error } = await db.from(table).select(select).in(col, ids.slice(i, i + 100));
+    if (error) throw error;
+    out.push(...data);
+  }
+  return out;
+}
+async function loadLaporan(keepRange) {
+  if (S.role !== 'owner') {
+    $('laporan-body').innerHTML = '<div class="card"><div class="empty"><b>Khusus owner</b></div></div>';
+    return;
+  }
+  if (!keepRange || !REP.a) applyPreset(REP.preset || 'today');
+  const body = $('laporan-body');
+  body.innerHTML = '<div class="card"><div class="empty"><div class="spinner"></div></div></div>';
+  try {
+    if (!S.menu) await loadMenu();
+    const [ordersQ, shiftsQ, staffQ] = await Promise.all([
+      db.from('orders').select('*').gte('business_date', REP.a).lte('business_date', REP.b).order('created_at'),
+      db.from('shifts').select('*').gte('business_date', REP.a).lte('business_date', REP.b).order('id'),
+      db.from('staff').select('id, name'),
+    ]);
+    if (ordersQ.error) throw ordersQ.error;
+    if (shiftsQ.error) throw shiftsQ.error;
+    const orders = ordersQ.data;
+    const oids = orders.map((o) => o.id);
+    const items = oids.length ? await fetchIn('order_items', 'order_id', oids, '*') : [];
+    const iids = items.map((i) => i.id);
+    const opts = iids.length ? await fetchIn('order_item_options', 'order_item_id', iids, '*') : [];
+    REP.raw = { orders, items, opts, shifts: shiftsQ.data, staff: staffQ.data || [] };
+    renderLaporan();
+  } catch (err) {
+    body.innerHTML = `<div class="card"><div class="empty"><b>Gagal muat laporan</b><small>${esc(err.message)}</small></div></div>`;
+  }
+}
+function renderLaporan() {
+  const { orders, items, opts, shifts, staff } = REP.raw;
+  const staffName = (id) => staff.find((s) => s.id === id)?.name || '—';
+  const paid = orders.filter((o) => o.status === 'paid');
+  const voids = orders.filter((o) => o.status === 'void');
+  const paidIds = new Set(paid.map((o) => o.id));
+  const pItems = items.filter((i) => paidIds.has(i.order_id));
+  const itemQty = new Map(pItems.map((i) => [i.id, i.qty]));
+  const pOpts = opts.filter((x) => itemQty.has(x.order_item_id));
+
+  const bruto = paid.reduce((a, o) => a + o.subtotal, 0);
+  const disc = paid.reduce((a, o) => a + o.discount_amount, 0);
+  const neto = paid.reduce((a, o) => a + o.total, 0);
+  const aov = paid.length ? Math.round(neto / paid.length) : 0;
+
+  const byKey = (arr, keyFn, valFn) => {
+    const m = new Map();
+    arr.forEach((x) => {
+      const k = keyFn(x);
+      const cur = m.get(k) || { n: 0, v: 0 };
+      cur.n += 1; cur.v += valFn(x);
+      m.set(k, cur);
+    });
+    return m;
+  };
+  const metode = byKey(paid, (o) => o.payment_method, (o) => o.total);
+  const channel = byKey(paid, (o) => o.channel, (o) => o.total);
+
+  // per produk (qty & omzet baris, sebelum diskon order)
+  const prodMap = new Map();
+  pItems.forEach((i) => {
+    const cur = prodMap.get(i.product_name_snapshot) || { qty: 0, rev: 0 };
+    cur.qty += i.qty; cur.rev += i.item_total;
+    prodMap.set(i.product_name_snapshot, cur);
+  });
+  const prodRows = [...prodMap.entries()].sort((x, y) => y[1].qty - x[1].qty || y[1].rev - x[1].rev);
+  // paling ga laku: semua produk aktif, termasuk yang 0 penjualan
+  const slow = S.menu.prods.map((p) => ({ name: p.name, qty: prodMap.get(p.name)?.qty || 0 }))
+    .sort((x, y) => x.qty - y.qty).slice(0, 5);
+
+  // per varian
+  const varMap = new Map();
+  pOpts.forEach((x) => {
+    const q = itemQty.get(x.order_item_id) || 0;
+    const k = x.group_name_snapshot + ' · ' + x.option_name_snapshot;
+    const cur = varMap.get(k) || { qty: 0, rev: 0 };
+    cur.qty += q; cur.rev += x.price_delta_snapshot * q;
+    varMap.set(k, cur);
+  });
+  const varRows = [...varMap.entries()].sort((x, y) => y[1].qty - x[1].qty);
+
+  // per jam WIB
+  const hourMap = new Map();
+  paid.forEach((o) => {
+    const h = +new Date(o.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', hour12: false });
+    const cur = hourMap.get(h) || { n: 0, v: 0 };
+    cur.n += 1; cur.v += o.total;
+    hourMap.set(h, cur);
+  });
+  const hours = [...hourMap.entries()].sort((a, b) => a[0] - b[0]);
+  const hourMax = Math.max(1, ...hours.map(([, x]) => x.v));
+
+  const card = (l, v, big) => `<div class="rep-card${big ? ' big' : ''}"><div class="rc-l">${l}</div><div class="rc-v num">${v}</div></div>`;
+  const sec = (t, inner) => `<div class="card rep-sec"><div class="rep-title">${t}</div>${inner}</div>`;
+  const r2 = (k, v) => `<div class="shift-row"><span class="k">${k}</span><span class="v num">${v}</span></div>`;
+  const tbl = (heads, rows) => rows.length
+    ? `<table class="rep-tbl"><tr>${heads.map((h, i) => `<th${i ? ' class="tr-num" style="text-align:right"' : ''}>${h}</th>`).join('')}</tr>${rows.join('')}</table>`
+    : '<div class="empty" style="padding:16px"><small>Ga ada data di rentang ini.</small></div>';
+
+  let h = `<div class="rep-cards">
+    ${card('Omzet Neto', fmtRp(neto), true)}
+    ${card('Bruto', fmtRp(bruto))}
+    ${card('Diskon', '− ' + fmtRp(disc))}
+    ${card('Transaksi', paid.length.toLocaleString('id-ID'))}
+    ${card('Rata-rata / trx', fmtRp(aov))}
+    ${card('Void', voids.length.toLocaleString('id-ID'))}
+  </div>`;
+
+  if (!orders.length) {
+    h += '<div class="card"><div class="empty"><div class="emo">📊</div><b>Belum ada transaksi di rentang ini</b></div></div>';
+    $('laporan-body').innerHTML = h;
+    return;
+  }
+
+  h += sec('Metode bayar',
+    r2(`Tunai (${metode.get('cash')?.n || 0} trx)`, fmtRp(metode.get('cash')?.v || 0)) +
+    r2(`QRIS (${metode.get('qris')?.n || 0} trx)`, fmtRp(metode.get('qris')?.v || 0)));
+  h += sec('Channel',
+    r2(`Makan di tempat (${channel.get('dine_in')?.n || 0} trx)`, fmtRp(channel.get('dine_in')?.v || 0)) +
+    r2(`Bawa pulang (${channel.get('takeaway')?.n || 0} trx)`, fmtRp(channel.get('takeaway')?.v || 0)));
+  h += sec('Penjualan per jam (WIB)',
+    hours.length ? hours.map(([hr, x]) =>
+      `<div class="bar-row"><span class="bl">${String(hr).padStart(2, '0')}:00</span>
+       <div class="bt"><div class="bar" style="width:${Math.round(x.v / hourMax * 100)}%"></div></div>
+       <span class="bv num">${fmtRp(x.v)}</span></div>`).join('')
+    : '<div class="empty" style="padding:16px"><small>Ga ada data.</small></div>');
+  h += sec('Top 5 produk', tbl(['Produk', 'Qty', 'Omzet'],
+    prodRows.slice(0, 5).map(([n, x]) =>
+      `<tr><td>${esc(n)}</td><td class="tr-num num">${x.qty}</td><td class="tr-num num">${fmtRp(x.rev)}</td></tr>`)));
+  h += sec('Paling ga laku', tbl(['Produk', 'Qty terjual'],
+    slow.map((x) => `<tr><td>${esc(x.name)}</td><td class="tr-num num">${x.qty}</td></tr>`)));
+  h += sec('Semua produk', tbl(['Produk', 'Qty', 'Omzet'],
+    prodRows.map(([n, x]) =>
+      `<tr><td>${esc(n)}</td><td class="tr-num num">${x.qty}</td><td class="tr-num num">${fmtRp(x.rev)}</td></tr>`)));
+  h += sec('Per varian', tbl(['Varian', 'Qty', 'Omzet tambahan'],
+    varRows.map(([n, x]) =>
+      `<tr><td>${esc(n)}</td><td class="tr-num num">${x.qty}</td><td class="tr-num num">${fmtRp(x.rev)}</td></tr>`)));
+  h += sec('Log diskon', tbl(['Order', 'Potongan', 'Alasan'],
+    paid.filter((o) => o.discount_amount > 0).map((o) =>
+      `<tr><td>${esc(o.order_no)}<br><small style="color:var(--muted)">${fmtTgl(o.business_date)} · ${esc(o.cashier_name_snapshot)}</small></td>
+       <td class="tr-num num">− ${fmtRp(o.discount_amount)}</td><td class="tr-num">${esc(o.discount_reason || '')}</td></tr>`)));
+  h += sec('Log void', tbl(['Order', 'Nilai', 'Alasan'],
+    voids.map((o) =>
+      `<tr><td>${esc(o.order_no)}<br><small style="color:var(--muted)">${fmtTgl(o.business_date)} · ${esc(o.cashier_name_snapshot)}</small></td>
+       <td class="tr-num num">${fmtRp(o.total)}</td><td class="tr-num">${esc(o.void_reason || '')}</td></tr>`)));
+  h += sec('Riwayat shift', tbl(['Shift', 'Kas seharusnya', 'Selisih'],
+    shifts.map((s) => {
+      const v = s.variance;
+      const vs = s.status !== 'closed' ? '<span class="badge">masih buka</span>'
+        : v === 0 ? 'Pas ✔'
+        : `<span class="${v > 0 ? 'variance-pos' : 'variance-neg'}">${v > 0 ? '+' : '−'} ${fmtRp(Math.abs(v))}</span>`;
+      return `<tr><td>${fmtTgl(s.business_date)}<br><small style="color:var(--muted)">${esc(staffName(s.opened_by))}${s.closed_by ? ' → ' + esc(staffName(s.closed_by)) : ''}</small></td>
+        <td class="tr-num num">${s.status === 'closed' ? fmtRp(s.system_cash_expected) : '—'}</td>
+        <td class="tr-num num">${vs}</td></tr>`;
+    })));
+  $('laporan-body').innerHTML = h;
+}
 
 /* ===== MODUL: INIT ===== */
 bindRpInput($('inp-opening'));
