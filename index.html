@@ -264,6 +264,24 @@ dialog::backdrop{background:rgba(27,42,32,.45)}
 .avail-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line);font-size:14px}
 .avail-sec{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px}
 
+/* ===== MODUL: ADMIN MENU (OWNER) ===== */
+.inp-select{width:100%;min-height:48px;padding:10px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;font-size:15px}
+.inp-select:focus{outline:none;border-color:var(--leaf)}
+.adm-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px dashed var(--line);cursor:pointer;min-height:44px}
+.adm-row:last-child{border-bottom:0}
+.adm-row .an{font-weight:700;font-size:14px}
+.adm-row .as{color:var(--muted);font-size:12.5px}
+.adm-row .av{font-weight:800;white-space:nowrap}
+.adm-row.inactive{opacity:.5}
+.adm-sub{padding-left:16px}
+.badge{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:8px;background:var(--bg);color:var(--muted);border:1px solid var(--line);vertical-align:middle}
+.badge.b-off{background:var(--red-bg);color:var(--danger);border:0}
+.badge.b-role{background:var(--green-bg);color:var(--leaf-dark);border:0}
+.adm-grp-add{color:var(--leaf);font-weight:700;font-size:13px;padding:8px 0 12px 16px;cursor:pointer;border-bottom:1px dashed var(--line)}
+.pe-chk{display:flex;align-items:center;gap:10px;padding:9px 0;font-size:14px;cursor:pointer}
+.pe-chk input{width:20px;height:20px;accent-color:var(--leaf)}
+.adm-hint{background:var(--bg);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--muted);margin-top:10px}
+
 /* ===== MODUL: RESPONSIVE ===== */
 @media (min-width:900px){
   .bottomnav{top:0;bottom:auto;left:auto;right:0;width:auto;position:static}
@@ -381,15 +399,20 @@ dialog::backdrop{background:rgba(27,42,32,.45)}
     </div>
   </main>
 
-  <!-- ===== MODUL: VIEW MENU (placeholder Stage 4, owner) ===== -->
+  <!-- ===== MODUL: VIEW KELOLA MENU (OWNER) ===== -->
   <main id="view-menu" class="view hidden">
     <h2>Kelola Menu</h2>
-    <p class="sub">Produk, kategori, varian & staff</p>
-    <div class="card"><div class="empty">
-      <div class="emo">🍊</div>
-      <b>Kelola menu dipasang di Stage 4</b>
-      <small>CRUD produk/kategori/varian, atur harga, staff & PIN. Khusus owner.</small>
-    </div></div>
+    <p class="sub">Khusus owner · ubah harga ga ngubah struk & laporan lama</p>
+    <div class="seg" id="seg-adm">
+      <button data-t="prod" class="on">Produk</button>
+      <button data-t="cat">Kategori</button>
+      <button data-t="grp">Varian</button>
+      <button data-t="staff">Staff</button>
+    </div>
+    <div class="card">
+      <div id="adm-list"><div class="empty"><div class="spinner"></div></div></div>
+      <div class="shift-actions"><button class="btn btn-primary" id="btn-adm-add">＋ Tambah</button></div>
+    </div>
   </main>
 
   <!-- ===== MODUL: VIEW LAPORAN (placeholder Stage 5, owner) ===== -->
@@ -587,6 +610,115 @@ dialog::backdrop{background:rgba(27,42,32,.45)}
     <p class="dlg-sub">Matiin item yang lagi kosong, nyalain lagi kapan aja. Harga & nama tetap aman.</p>
     <div class="dlg-scroll" id="habis-list"></div>
     <div class="dlg-actions"><button class="btn btn-primary" id="btn-habis-close" style="width:100%">Selesai</button></div>
+  </div>
+</dialog>
+
+<!-- ===== MODUL: DIALOG EDIT PRODUK ===== -->
+<dialog id="dlg-prod">
+  <div class="dlg-body">
+    <h3 id="pe-title">Produk</h3>
+    <div class="dlg-scroll">
+      <div class="field"><label for="pe-name">Nama</label><input id="pe-name" type="text"></div>
+      <div class="field"><label for="pe-cat">Kategori</label><select id="pe-cat" class="inp-select"></select></div>
+      <div class="field"><label for="pe-price">Harga dasar (Rp)</label><input id="pe-price" type="text" inputmode="numeric"></div>
+      <div class="field"><label for="pe-sort">Urutan tampil</label><input id="pe-sort" type="text" inputmode="numeric" placeholder="0"></div>
+      <div class="avail-row"><span>Aktif (tampil di menu)</span><label class="switch"><input type="checkbox" id="pe-active"><span class="tr"></span></label></div>
+      <div class="avail-row"><span>Tersedia (ga habis)</span><label class="switch"><input type="checkbox" id="pe-avail"><span class="tr"></span></label></div>
+      <div class="avail-sec">Grup varian produk ini</div>
+      <div id="pe-groups"></div>
+      <div class="adm-hint">Produk yang udah pernah dipakai transaksi ga bisa dihapus permanen — matiin "Aktif" aja buat nyembunyiin.</div>
+    </div>
+    <div class="dlg-actions">
+      <button class="btn btn-outline" id="btn-pe-cancel">Batal</button>
+      <button class="btn btn-primary" id="btn-pe-save">Simpan</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ===== MODUL: DIALOG EDIT KATEGORI ===== -->
+<dialog id="dlg-cat">
+  <div class="dlg-body">
+    <h3 id="ce-title">Kategori</h3>
+    <div class="field"><label for="ce-name">Nama</label><input id="ce-name" type="text"></div>
+    <div class="field"><label for="ce-sort">Urutan tampil</label><input id="ce-sort" type="text" inputmode="numeric" placeholder="0"></div>
+    <div class="avail-row"><span>Aktif</span><label class="switch"><input type="checkbox" id="ce-active"><span class="tr"></span></label></div>
+    <div class="dlg-actions">
+      <button class="btn btn-outline" id="btn-ce-cancel">Batal</button>
+      <button class="btn btn-primary" id="btn-ce-save">Simpan</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ===== MODUL: DIALOG EDIT GRUP VARIAN ===== -->
+<dialog id="dlg-grp">
+  <div class="dlg-body">
+    <h3 id="ge-title">Grup varian</h3>
+    <div class="field"><label for="ge-name">Nama grup</label><input id="ge-name" type="text" placeholder="cth: Topping"></div>
+    <div class="field"><label for="ge-type">Tipe pilihan</label>
+      <select id="ge-type" class="inp-select">
+        <option value="single">Pilih satu</option>
+        <option value="multi">Pilih banyak</option>
+      </select>
+    </div>
+    <div class="avail-row"><span>Wajib dipilih</span><label class="switch"><input type="checkbox" id="ge-req"><span class="tr"></span></label></div>
+    <div class="field" style="margin-top:12px"><label for="ge-sort">Urutan tampil</label><input id="ge-sort" type="text" inputmode="numeric" placeholder="0"></div>
+    <div class="avail-row"><span>Aktif</span><label class="switch"><input type="checkbox" id="ge-active"><span class="tr"></span></label></div>
+    <div class="dlg-actions">
+      <button class="btn btn-outline" id="btn-ge-cancel">Batal</button>
+      <button class="btn btn-primary" id="btn-ge-save">Simpan</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ===== MODUL: DIALOG EDIT OPSI VARIAN ===== -->
+<dialog id="dlg-opt">
+  <div class="dlg-body">
+    <h3 id="oe-title">Opsi</h3>
+    <p class="dlg-sub" id="oe-grp"></p>
+    <div class="field"><label for="oe-name">Nama opsi</label><input id="oe-name" type="text"></div>
+    <div class="field"><label for="oe-delta">Tambahan harga (Rp)</label><input id="oe-delta" type="text" inputmode="numeric" placeholder="0"></div>
+    <div class="avail-row"><span>Jadi default (kepilih otomatis)</span><label class="switch"><input type="checkbox" id="oe-default"><span class="tr"></span></label></div>
+    <div class="avail-row"><span>Tersedia (ga habis)</span><label class="switch"><input type="checkbox" id="oe-avail"><span class="tr"></span></label></div>
+    <div class="avail-row"><span>Aktif</span><label class="switch"><input type="checkbox" id="oe-active"><span class="tr"></span></label></div>
+    <div class="dlg-actions">
+      <button class="btn btn-outline" id="btn-oe-cancel">Batal</button>
+      <button class="btn btn-primary" id="btn-oe-save">Simpan</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ===== MODUL: DIALOG EDIT STAFF ===== -->
+<dialog id="dlg-staff">
+  <div class="dlg-body">
+    <h3 id="se-title">Staff</h3>
+    <div class="field"><label for="se-name">Nama</label><input id="se-name" type="text"></div>
+    <div class="field"><label for="se-role">Peran</label>
+      <select id="se-role" class="inp-select">
+        <option value="cashier">Kasir</option>
+        <option value="owner">Owner</option>
+      </select>
+    </div>
+    <div class="avail-row"><span>Aktif (bisa login PIN)</span><label class="switch"><input type="checkbox" id="se-active"><span class="tr"></span></label></div>
+    <button class="btn btn-outline hidden" id="btn-se-pin" style="width:100%;margin-top:12px">🔑 Set / ganti PIN</button>
+    <div class="adm-hint">Staff baru belum bisa login sampai PIN-nya di-set. PIN harus beda antar staff.</div>
+    <div class="dlg-actions">
+      <button class="btn btn-outline" id="btn-se-cancel">Batal</button>
+      <button class="btn btn-primary" id="btn-se-save">Simpan</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ===== MODUL: DIALOG SET PIN ===== -->
+<dialog id="dlg-pin">
+  <div class="dlg-body">
+    <h3>Set PIN</h3>
+    <p class="dlg-sub" id="pin-sub"></p>
+    <div class="field"><label for="inp-new-pin">PIN baru (4-6 digit)</label>
+      <input id="inp-new-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off"></div>
+    <div class="dlg-actions">
+      <button class="btn btn-outline" id="btn-pin-cancel">Batal</button>
+      <button class="btn btn-primary" id="btn-pin-save">Simpan PIN</button>
+    </div>
   </div>
 </dialog>
 
@@ -807,6 +939,7 @@ function setView(id) {
   if (id === 'shift') refreshShift();
   if (id === 'kasir') renderKasirGate();
   if (id === 'riwayat') loadRiwayat();
+  if (id === 'menu') loadAdmin();
 }
 function renderUserChip() {
   const chip = $('chip-user');
@@ -1616,6 +1749,340 @@ $('habis-list').addEventListener('change', async (e) => {
   }
 });
 $('btn-habis-close').addEventListener('click', () => $('dlg-habis').close());
+
+/* ===== MODUL: KELOLA MENU & STAFF (OWNER) ===== */
+let ADM = { tab: 'prod', data: null, edit: null, optGroup: null, staffEdit: null, pinStaff: null };
+
+async function loadAdmin() {
+  if (S.role !== 'owner') {
+    $('adm-list').innerHTML = '<div class="empty"><b>Khusus owner</b><small>Login pakai akun owner buat kelola menu.</small></div>';
+    return;
+  }
+  $('adm-list').innerHTML = '<div class="empty"><div class="spinner"></div></div>';
+  const [cat, prod, grp, opt, pvg, staff] = await Promise.all([
+    db.from('categories').select('*').order('sort_order'),
+    db.from('products').select('*').order('sort_order'),
+    db.from('variant_groups').select('*').order('sort_order'),
+    db.from('variant_options').select('*').order('sort_order'),
+    db.from('product_variant_groups').select('*'),
+    // PENTING: jangan pernah select * di staff — kolom pin_hash memang diblok
+    db.from('staff').select('id, name, role, is_active').order('id'),
+  ]);
+  const err = cat.error || prod.error || grp.error || opt.error || pvg.error || staff.error;
+  if (err) {
+    $('adm-list').innerHTML = `<div class="empty"><b>Gagal muat</b><small>${esc(err.message)}</small></div>`;
+    return;
+  }
+  ADM.data = { cats: cat.data, prods: prod.data, groups: grp.data, opts: opt.data, pvg: pvg.data, staff: staff.data };
+  renderAdmin();
+}
+const admGroupNames = (pid) => ADM.data.pvg
+  .filter((x) => x.product_id === pid)
+  .map((x) => ADM.data.groups.find((g) => g.id === x.variant_group_id)?.name)
+  .filter(Boolean).join(' · ');
+
+function renderAdmin() {
+  document.querySelectorAll('#seg-adm button').forEach((b) =>
+    b.classList.toggle('on', b.dataset.t === ADM.tab));
+  const labels = { prod: '＋ Tambah produk', cat: '＋ Tambah kategori', grp: '＋ Tambah grup varian', staff: '＋ Tambah staff' };
+  $('btn-adm-add').textContent = labels[ADM.tab];
+  const D = ADM.data;
+  if (!D) return;
+  let h = '';
+  if (ADM.tab === 'prod') {
+    D.cats.forEach((c) => {
+      const ps = D.prods.filter((p) => p.category_id === c.id);
+      if (!ps.length) return;
+      h += `<div class="avail-sec">${esc(c.name)}</div>`;
+      ps.forEach((p) => {
+        h += `<div class="adm-row${p.is_active ? '' : ' inactive'}" data-k="prod" data-id="${p.id}">
+          <div><div class="an">${esc(p.name)} ${p.is_active ? '' : '<span class="badge b-off">nonaktif</span>'} ${p.is_available ? '' : '<span class="badge b-off">habis</span>'}</div>
+          <div class="as">${esc(admGroupNames(p.id) || 'tanpa varian')}</div></div>
+          <div class="av num">${fmtRp(p.base_price)}</div></div>`;
+      });
+    });
+  } else if (ADM.tab === 'cat') {
+    D.cats.forEach((c) => {
+      const n = D.prods.filter((p) => p.category_id === c.id).length;
+      h += `<div class="adm-row${c.is_active ? '' : ' inactive'}" data-k="cat" data-id="${c.id}">
+        <div><div class="an">${esc(c.name)} ${c.is_active ? '' : '<span class="badge b-off">nonaktif</span>'}</div>
+        <div class="as">${n} produk · urutan ${c.sort_order}</div></div><div>›</div></div>`;
+    });
+  } else if (ADM.tab === 'grp') {
+    D.groups.forEach((g) => {
+      h += `<div class="adm-row${g.is_active ? '' : ' inactive'}" data-k="grp" data-id="${g.id}">
+        <div><div class="an">${esc(g.name)} ${g.is_active ? '' : '<span class="badge b-off">nonaktif</span>'}</div>
+        <div class="as">${g.selection_type === 'single' ? 'Pilih satu' : 'Pilih banyak'}${g.is_required ? ' · wajib' : ' · opsional'}</div></div><div>›</div></div>`;
+      D.opts.filter((o) => o.variant_group_id === g.id).forEach((o) => {
+        h += `<div class="adm-row adm-sub${o.is_active ? '' : ' inactive'}" data-k="opt" data-id="${o.id}">
+          <div class="an">${esc(o.name)} ${o.is_default ? '<span class="badge">default</span>' : ''} ${o.is_available ? '' : '<span class="badge b-off">habis</span>'} ${o.is_active ? '' : '<span class="badge b-off">nonaktif</span>'}</div>
+          <div class="av num">+${(o.price_delta || 0).toLocaleString('id-ID')}</div></div>`;
+      });
+      h += `<div class="adm-grp-add" data-addopt="${g.id}">＋ Tambah opsi di ${esc(g.name)}</div>`;
+    });
+  } else {
+    D.staff.forEach((s) => {
+      h += `<div class="adm-row${s.is_active ? '' : ' inactive'}" data-k="staff" data-id="${s.id}">
+        <div><div class="an">${esc(s.name)} <span class="badge b-role">${s.role === 'owner' ? 'Owner' : 'Kasir'}</span> ${s.is_active ? '' : '<span class="badge b-off">nonaktif</span>'}</div>
+        <div class="as">ketuk buat edit / ganti PIN</div></div><div>›</div></div>`;
+    });
+  }
+  $('adm-list').innerHTML = h || '<div class="empty"><b>Kosong</b></div>';
+}
+$('seg-adm').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-t]');
+  if (!b) return;
+  ADM.tab = b.dataset.t;
+  renderAdmin();
+});
+$('adm-list').addEventListener('click', (e) => {
+  const addOpt = e.target.closest('[data-addopt]');
+  if (addOpt) { openOptDlg(null, +addOpt.dataset.addopt); return; }
+  const row = e.target.closest('.adm-row[data-k]');
+  if (!row) return;
+  const id = +row.dataset.id;
+  const k = row.dataset.k;
+  const D = ADM.data;
+  if (k === 'prod') openProdDlg(D.prods.find((x) => x.id === id));
+  if (k === 'cat') openCatDlg(D.cats.find((x) => x.id === id));
+  if (k === 'grp') openGrpDlg(D.groups.find((x) => x.id === id));
+  if (k === 'opt') { const o = D.opts.find((x) => x.id === id); openOptDlg(o, o.variant_group_id); }
+  if (k === 'staff') openStaffDlg(D.staff.find((x) => x.id === id));
+});
+$('btn-adm-add').addEventListener('click', () => {
+  if (!ADM.data) return;
+  if (ADM.tab === 'prod') openProdDlg(null);
+  if (ADM.tab === 'cat') openCatDlg(null);
+  if (ADM.tab === 'grp') openGrpDlg(null);
+  if (ADM.tab === 'staff') openStaffDlg(null);
+});
+async function admAfterSave(msg) {
+  toast(msg);
+  await Promise.all([loadAdmin(), loadMenu()]);   // sync juga ke grid kasir
+}
+const parseSort = (v) => parseInt(String(v).replace(/\D/g, ''), 10) || 0;
+
+/* --- Produk --- */
+function openProdDlg(p) {
+  ADM.edit = p || null;
+  $('pe-title').textContent = p ? 'Edit produk' : 'Produk baru';
+  $('pe-name').value = p?.name || '';
+  const sel = $('pe-cat');
+  sel.innerHTML = '';
+  ADM.data.cats.filter((c) => c.is_active || c.id === p?.category_id).forEach((c) => {
+    sel.innerHTML += `<option value="${c.id}" ${p?.category_id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`;
+  });
+  $('pe-price').value = p ? p.base_price.toLocaleString('id-ID') : '';
+  $('pe-sort').value = p?.sort_order ?? '';
+  $('pe-active').checked = p ? p.is_active : true;
+  $('pe-avail').checked = p ? p.is_available : true;
+  const cur = p ? ADM.data.pvg.filter((x) => x.product_id === p.id).map((x) => x.variant_group_id) : [];
+  $('pe-groups').innerHTML = ADM.data.groups.filter((g) => g.is_active).map((g) =>
+    `<label class="pe-chk"><input type="checkbox" value="${g.id}" ${cur.includes(g.id) ? 'checked' : ''}> ${esc(g.name)}</label>`).join('');
+  $('dlg-prod').showModal();
+}
+$('btn-pe-cancel').addEventListener('click', () => $('dlg-prod').close());
+$('btn-pe-save').addEventListener('click', async () => {
+  const name = $('pe-name').value.trim();
+  const price = parseRp($('pe-price').value);
+  if (!name) { toast('Nama produk wajib', true); return; }
+  if (price === null) { toast('Harga wajib diisi', true); return; }
+  const row = {
+    name, category_id: +$('pe-cat').value, base_price: price,
+    sort_order: parseSort($('pe-sort').value),
+    is_active: $('pe-active').checked, is_available: $('pe-avail').checked,
+  };
+  const btn = $('btn-pe-save');
+  btn.disabled = true;
+  try {
+    let pid;
+    if (ADM.edit) {
+      const { error } = await db.from('products').update(row).eq('id', ADM.edit.id);
+      if (error) throw error;
+      pid = ADM.edit.id;
+    } else {
+      const { data, error } = await db.from('products').insert(row).select('id').single();
+      if (error) throw error;
+      pid = data.id;
+    }
+    const want = [...document.querySelectorAll('#pe-groups input:checked')].map((i) => +i.value);
+    const cur = ADM.data.pvg.filter((x) => x.product_id === pid).map((x) => x.variant_group_id);
+    const add = want.filter((g) => !cur.includes(g));
+    const del = cur.filter((g) => !want.includes(g));
+    if (add.length) {
+      const { error } = await db.from('product_variant_groups').insert(add.map((g) => ({
+        product_id: pid, variant_group_id: g,
+        sort_order: ADM.data.groups.find((x) => x.id === g)?.sort_order || 0,
+      })));
+      if (error) throw error;
+    }
+    for (const g of del) {
+      const { error } = await db.from('product_variant_groups').delete()
+        .eq('product_id', pid).eq('variant_group_id', g);
+      if (error) throw error;
+    }
+    $('dlg-prod').close();
+    await admAfterSave('Produk tersimpan ✔');
+  } catch (err) { toast(err.message, true); }
+  finally { btn.disabled = false; }
+});
+
+/* --- Kategori --- */
+function openCatDlg(c) {
+  ADM.edit = c || null;
+  $('ce-title').textContent = c ? 'Edit kategori' : 'Kategori baru';
+  $('ce-name').value = c?.name || '';
+  $('ce-sort').value = c?.sort_order ?? '';
+  $('ce-active').checked = c ? c.is_active : true;
+  $('dlg-cat').showModal();
+}
+$('btn-ce-cancel').addEventListener('click', () => $('dlg-cat').close());
+$('btn-ce-save').addEventListener('click', async () => {
+  const name = $('ce-name').value.trim();
+  if (!name) { toast('Nama kategori wajib', true); return; }
+  const row = { name, sort_order: parseSort($('ce-sort').value), is_active: $('ce-active').checked };
+  const btn = $('btn-ce-save');
+  btn.disabled = true;
+  try {
+    const q = ADM.edit
+      ? db.from('categories').update(row).eq('id', ADM.edit.id)
+      : db.from('categories').insert(row);
+    const { error } = await q;
+    if (error) throw error;
+    $('dlg-cat').close();
+    await admAfterSave('Kategori tersimpan ✔');
+  } catch (err) { toast(err.message, true); }
+  finally { btn.disabled = false; }
+});
+
+/* --- Grup varian --- */
+function openGrpDlg(g) {
+  ADM.edit = g || null;
+  $('ge-title').textContent = g ? 'Edit grup varian' : 'Grup varian baru';
+  $('ge-name').value = g?.name || '';
+  $('ge-type').value = g?.selection_type || 'single';
+  $('ge-req').checked = g ? g.is_required : false;
+  $('ge-sort').value = g?.sort_order ?? '';
+  $('ge-active').checked = g ? g.is_active : true;
+  $('dlg-grp').showModal();
+}
+$('btn-ge-cancel').addEventListener('click', () => $('dlg-grp').close());
+$('btn-ge-save').addEventListener('click', async () => {
+  const name = $('ge-name').value.trim();
+  if (!name) { toast('Nama grup wajib', true); return; }
+  const type = $('ge-type').value;
+  const row = {
+    name, selection_type: type, is_required: $('ge-req').checked,
+    min_select: 0, max_select: type === 'single' ? 1 : null,
+    sort_order: parseSort($('ge-sort').value), is_active: $('ge-active').checked,
+  };
+  const btn = $('btn-ge-save');
+  btn.disabled = true;
+  try {
+    const q = ADM.edit
+      ? db.from('variant_groups').update(row).eq('id', ADM.edit.id)
+      : db.from('variant_groups').insert(row);
+    const { error } = await q;
+    if (error) throw error;
+    $('dlg-grp').close();
+    await admAfterSave('Grup varian tersimpan ✔');
+  } catch (err) { toast(err.message, true); }
+  finally { btn.disabled = false; }
+});
+
+/* --- Opsi varian --- */
+function openOptDlg(o, gid) {
+  ADM.edit = o || null;
+  ADM.optGroup = gid;
+  const g = ADM.data.groups.find((x) => x.id === gid);
+  $('oe-title').textContent = o ? 'Edit opsi' : 'Opsi baru';
+  $('oe-grp').textContent = 'Grup: ' + (g?.name || '');
+  $('oe-name').value = o?.name || '';
+  $('oe-delta').value = o ? (o.price_delta || 0).toLocaleString('id-ID') : '';
+  $('oe-default').checked = o ? o.is_default : false;
+  $('oe-avail').checked = o ? o.is_available : true;
+  $('oe-active').checked = o ? o.is_active : true;
+  $('dlg-opt').showModal();
+}
+$('btn-oe-cancel').addEventListener('click', () => $('dlg-opt').close());
+$('btn-oe-save').addEventListener('click', async () => {
+  const name = $('oe-name').value.trim();
+  if (!name) { toast('Nama opsi wajib', true); return; }
+  const isDef = $('oe-default').checked;
+  const row = {
+    variant_group_id: ADM.optGroup, name,
+    price_delta: parseRp($('oe-delta').value) ?? 0,
+    is_default: isDef, is_available: $('oe-avail').checked, is_active: $('oe-active').checked,
+  };
+  const btn = $('btn-oe-save');
+  btn.disabled = true;
+  try {
+    if (isDef) {
+      // default cuma boleh satu per grup
+      const { error } = await db.from('variant_options')
+        .update({ is_default: false }).eq('variant_group_id', ADM.optGroup);
+      if (error) throw error;
+    }
+    const q = ADM.edit
+      ? db.from('variant_options').update(row).eq('id', ADM.edit.id)
+      : db.from('variant_options').insert(row);
+    const { error } = await q;
+    if (error) throw error;
+    $('dlg-opt').close();
+    await admAfterSave('Opsi tersimpan ✔');
+  } catch (err) { toast(err.message, true); }
+  finally { btn.disabled = false; }
+});
+
+/* --- Staff & PIN --- */
+function openStaffDlg(s) {
+  ADM.staffEdit = s || null;
+  $('se-title').textContent = s ? 'Edit staff' : 'Staff baru';
+  $('se-name').value = s?.name || '';
+  $('se-role').value = s?.role || 'cashier';
+  $('se-active').checked = s ? s.is_active : true;
+  $('btn-se-pin').classList.toggle('hidden', !s);
+  $('dlg-staff').showModal();
+}
+$('btn-se-cancel').addEventListener('click', () => $('dlg-staff').close());
+$('btn-se-save').addEventListener('click', async () => {
+  const name = $('se-name').value.trim();
+  if (!name) { toast('Nama staff wajib', true); return; }
+  const row = { name, role: $('se-role').value, is_active: $('se-active').checked };
+  const btn = $('btn-se-save');
+  btn.disabled = true;
+  try {
+    const isNew = !ADM.staffEdit;
+    const q = ADM.staffEdit
+      ? db.from('staff').update(row).eq('id', ADM.staffEdit.id)
+      : db.from('staff').insert(row);
+    const { error } = await q;
+    if (error) throw error;
+    $('dlg-staff').close();
+    await admAfterSave(isNew ? 'Staff dibuat — sekarang set PIN-nya 🔑' : 'Staff tersimpan ✔');
+  } catch (err) { toast(err.message, true); }
+  finally { btn.disabled = false; }
+});
+$('btn-se-pin').addEventListener('click', () => {
+  ADM.pinStaff = ADM.staffEdit;
+  $('pin-sub').textContent = 'PIN buat: ' + ADM.pinStaff.name;
+  $('inp-new-pin').value = '';
+  $('dlg-pin').showModal();
+});
+$('btn-pin-cancel').addEventListener('click', () => $('dlg-pin').close());
+$('btn-pin-save').addEventListener('click', async () => {
+  const pin = $('inp-new-pin').value.trim();
+  if (!/^\d{4,6}$/.test(pin)) { toast('PIN harus 4-6 digit angka', true); return; }
+  const btn = $('btn-pin-save');
+  btn.disabled = true;
+  try {
+    await rpc('set_staff_pin', { p_staff_id: ADM.pinStaff.id, p_new_pin: pin });
+    $('dlg-pin').close();
+    toast('PIN ' + ADM.pinStaff.name + ' tersimpan 🔑');
+  } catch (err) {
+    if (err.message !== 'SESI_INVALID') toast(err.message, true);
+  } finally { btn.disabled = false; }
+});
 
 /* ===== MODUL: INIT ===== */
 bindRpInput($('inp-opening'));
