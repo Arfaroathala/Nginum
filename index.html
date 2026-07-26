@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nginum POS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ===== MODUL: THEME & BASE ===== */
+:root{
+  --bg:#F5F8F3;          /* off-white kehijauan */
+  --surface:#FFFFFF;
+  --ink:#1B2A20;         /* hijau-hitam */
+  --muted:#66766B;
+  --line:#DDE6DC;
+  --leaf:#137A44;        /* brand hijau daun */
+  --leaf-dark:#0D5C33;
+  --citrus:#F28C1B;      /* aksen jeruk (CTA bayar/aksi utama) */
+  --citrus-dark:#D97706;
+  --danger:#CE4141;
+  --amber-bg:#FEF3E2;
+  --green-bg:#E8F5EC;
+  --red-bg:#FBEAEA;
+  --radius:14px;
+  --shadow:0 1px 3px rgba(27,42,32,.08),0 4px 14px rgba(27,42,32,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
+  background:var(--bg);color:var(--ink);
+  font-size:15px;line-height:1.5;
+  -webkit-tap-highlight-color:transparent;
+}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+input,select,textarea{font:inherit}
+.num{font-variant-numeric:tabular-nums}
+.hidden{display:none!important}
+
+/* ===== MODUL: LAYAR & TRANSISI ===== */
+.screen{min-height:100dvh;display:flex;flex-direction:column}
+.center-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}
+.auth-card{width:100%;max-width:380px;background:var(--surface);border-radius:20px;box-shadow:var(--shadow);padding:28px 24px}
+
+/* ===== MODUL: BRAND ===== */
+.brand{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:6px}
+.brand .glass{width:34px;height:34px;border-radius:10px;background:linear-gradient(160deg,var(--leaf) 55%,var(--citrus) 55%);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px;transform:rotate(-6deg)}
+.brand h1{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.brand h1 span{color:var(--leaf)}
+.tagline{text-align:center;color:var(--muted);font-size:13px;margin-bottom:22px}
+
+/* ===== MODUL: FORM ===== */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.field input{
+  width:100%;min-height:48px;padding:10px 14px;border:1.5px solid var(--line);
+  border-radius:12px;background:#fff;font-size:15px;
+}
+.field input:focus{outline:none;border-color:var(--leaf);box-shadow:0 0 0 3px rgba(19,122,68,.14)}
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  min-height:48px;padding:10px 18px;border-radius:12px;font-weight:700;font-size:15px;
+  transition:transform .06s ease,opacity .15s;user-select:none;
+}
+.btn:active{transform:scale(.97)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btn-primary{background:var(--leaf);color:#fff;width:100%}
+.btn-primary:hover{background:var(--leaf-dark)}
+.btn-citrus{background:var(--citrus);color:#fff}
+.btn-citrus:hover{background:var(--citrus-dark)}
+.btn-ghost{background:transparent;color:var(--muted);font-weight:600}
+.btn-outline{background:#fff;border:1.5px solid var(--line);color:var(--ink)}
+.btn-danger-outline{background:#fff;border:1.5px solid var(--danger);color:var(--danger)}
+.form-err{background:var(--red-bg);color:var(--danger);border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600;margin-bottom:12px}
+
+/* ===== MODUL: PIN NUMPAD ===== */
+.pin-card{max-width:340px;text-align:center}
+.pin-staff-hint{font-size:13px;color:var(--muted);margin-bottom:18px}
+.pin-dots{display:flex;gap:12px;justify-content:center;min-height:18px;margin-bottom:8px}
+.pin-dots .dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);transition:background .1s}
+.pin-dots .dot.on{background:var(--leaf);border-color:var(--leaf)}
+.pin-msg{min-height:20px;font-size:13px;font-weight:600;color:var(--danger);margin-bottom:10px}
+.pin-card.shake{animation:shake .35s}
+@keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.numpad button{
+  height:64px;border-radius:50%;background:var(--bg);font-size:22px;font-weight:700;
+  border:1.5px solid var(--line);
+}
+.numpad button:active{background:var(--green-bg);border-color:var(--leaf)}
+.numpad .fn{font-size:15px;color:var(--muted);border:none;background:transparent}
+@media (prefers-reduced-motion:reduce){.pin-card.shake{animation:none}}
+
+/* ===== MODUL: APP LAYOUT ===== */
+#scr-app{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+.topbar{
+  position:sticky;top:0;z-index:20;background:var(--surface);
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+}
+.topbar .brand-mini{display:flex;align-items:center;gap:8px;font-weight:800;font-size:16px}
+.topbar .brand-mini .glass{width:26px;height:26px;font-size:13px;border-radius:8px}
+.topbar .spacer{flex:1}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;
+  font-size:12.5px;font-weight:700;white-space:nowrap;
+}
+.chip .dot-s{width:8px;height:8px;border-radius:50%}
+.chip-shift-open{background:var(--green-bg);color:var(--leaf-dark)}
+.chip-shift-open .dot-s{background:var(--leaf)}
+.chip-shift-closed{background:var(--amber-bg);color:#9A5B00}
+.chip-shift-closed .dot-s{background:var(--citrus)}
+.chip-user{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.icon-btn{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:19px}
+.icon-btn:active{background:var(--bg)}
+
+.view{max-width:960px;margin:0 auto;padding:18px 14px 30px}
+.view h2{font-size:19px;font-weight:800;letter-spacing:-.01em;margin-bottom:4px}
+.view .sub{color:var(--muted);font-size:13.5px;margin-bottom:16px}
+
+.card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+.card + .card{margin-top:12px}
+
+.empty{
+  text-align:center;padding:44px 20px;color:var(--muted);
+}
+.empty .emo{font-size:40px;margin-bottom:10px}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:4px}
+.empty small{font-size:13px}
+
+/* ===== MODUL: SHIFT PANEL ===== */
+.shift-row{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.shift-row:last-of-type{border-bottom:0}
+.shift-row .k{color:var(--muted)}
+.shift-row .v{font-weight:700}
+.shift-actions{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.variance-pos{color:var(--leaf-dark)}
+.variance-neg{color:var(--danger)}
+
+/* ===== MODUL: BOTTOM NAV ===== */
+.bottomnav{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;
+  background:var(--surface);border-top:1px solid var(--line);
+  display:flex;justify-content:space-around;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.bottomnav button{
+  flex:1;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  font-size:11.5px;font-weight:700;color:var(--muted);max-width:140px;
+}
+.bottomnav button .ni{font-size:21px;line-height:1}
+.bottomnav button.active{color:var(--leaf)}
+.bottomnav button.active .ni{transform:translateY(-1px)}
+
+/* ===== MODUL: DIALOG ===== */
+dialog{
+  border:0;border-radius:18px;padding:0;width:min(92vw,400px);
+  box-shadow:0 10px 40px rgba(27,42,32,.25);
+}
+dialog::backdrop{background:rgba(27,42,32,.45)}
+.dlg-body{padding:22px 20px}
+.dlg-body h3{font-size:17px;font-weight:800;margin-bottom:4px}
+.dlg-body .dlg-sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+.dlg-actions{display:flex;gap:10px;margin-top:18px}
+.dlg-actions .btn{flex:1}
+
+/* ===== MODUL: TOAST ===== */
+#toast{
+  position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:#fff;padding:11px 18px;border-radius:12px;font-size:13.5px;font-weight:600;
+  opacity:0;pointer-events:none;transition:all .25s;z-index:99;max-width:88vw;text-align:center;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{background:var(--danger)}
+
+/* ===== MODUL: LOADING ===== */
+.spinner{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--leaf);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+#boot-msg{text-align:center;color:var(--muted);font-size:13px;margin-top:12px}
+
+/* ===== MODUL: RESPONSIVE ===== */
+@media (min-width:900px){
+  .bottomnav{top:0;bottom:auto;left:auto;right:0;width:auto;position:static}
+  #scr-app{padding-bottom:0}
+  .topbar{padding:10px 22px}
+  .topbar .bottomnav{background:none;border:0;display:flex;gap:4px}
+  .topbar .bottomnav button{min-height:44px;flex-direction:row;font-size:13.5px;padding:0 14px}
+  #toast{bottom:24px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== MODUL: LAYAR BOOT ===== -->
+<div id="scr-boot" class="screen">
+  <div class="center-wrap"><div>
+    <div class="spinner"></div>
+    <p id="boot-msg">Nyambung ke server…</p>
+  </div></div>
+</div>
+
+<!-- ===== MODUL: LAYAR LOGIN DEVICE ===== -->
+<div id="scr-device" class="screen hidden">
+  <div class="center-wrap">
+    <div class="auth-card">
+      <div class="brand"><div class="glass">N</div><h1>Nginum<span>·POS</span></h1></div>
+      <p class="tagline">Login sekali per device. Akun kasir pakai akun device.</p>
+      <div id="device-err" class="form-err hidden"></div>
+      <form id="form-device">
+        <div class="field">
+          <label for="dev-email">Email</label>
+          <input id="dev-email" type="email" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="dev-pass">Password</label>
+          <input id="dev-pass" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="btn btn-primary" id="btn-device-login" type="submit">Masuk</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODUL: LAYAR PIN ===== -->
+<div id="scr-pin" class="screen hidden">
+  <div class="center-wrap">
+    <div class="auth-card pin-card" id="pin-card">
+      <div class="brand"><div class="glass">N</div><h1>Nginum<span>·POS</span></h1></div>
+      <p class="pin-staff-hint">Masukin PIN kamu buat mulai jaga kasir</p>
+      <div class="pin-dots" id="pin-dots"></div>
+      <p class="pin-msg" id="pin-msg"></p>
+      <div class="numpad" id="numpad">
+        <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+        <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+        <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+        <button class="fn" data-k="clear">Hapus</button><button data-k="0">0</button><button class="fn" data-k="back">⌫</button>
+      </div>
+      <button class="btn btn-primary" id="btn-pin-submit" disabled>Masuk</button>
+      <button class="btn btn-ghost" id="btn-pin-back" style="width:100%;margin-top:8px">Ganti akun device</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODUL: LAYAR APP ===== -->
+<div id="scr-app" class="screen hidden">
+  <header class="topbar">
+    <div class="brand-mini"><div class="glass">N</div><span>Nginum<span style="color:var(--leaf)">·POS</span></span></div>
+    <span id="chip-shift" class="chip chip-shift-closed"><span class="dot-s"></span><span>Shift —</span></span>
+    <div class="spacer"></div>
+    <span id="chip-user" class="chip chip-user hidden"></span>
+    <button id="btn-lock" class="icon-btn hidden" title="Kunci layar (ganti kasir)">🔒</button>
+  </header>
+
+  <!-- ===== MODUL: VIEW KASIR (placeholder Stage 3) ===== -->
+  <main id="view-kasir" class="view hidden">
+    <h2>Kasir</h2>
+    <p class="sub">Input pesanan & pembayaran</p>
+    <div class="card"><div class="empty">
+      <div class="emo">🧃</div>
+      <b>Modul kasir dipasang di Stage 3</b>
+      <small>Grid produk, varian, keranjang, diskon, bayar cash/QRIS, struk & share WA.</small>
+    </div></div>
+  </main>
+
+  <!-- ===== MODUL: VIEW RIWAYAT (placeholder Stage 3) ===== -->
+  <main id="view-riwayat" class="view hidden">
+    <h2>Riwayat</h2>
+    <p class="sub">Transaksi hari ini</p>
+    <div class="card"><div class="empty">
+      <div class="emo">🧾</div>
+      <b>Riwayat dipasang di Stage 3</b>
+      <small>Daftar transaksi hari ini, buka ulang struk, void (butuh PIN owner).</small>
+    </div></div>
+  </main>
+
+  <!-- ===== MODUL: VIEW SHIFT ===== -->
+  <main id="view-shift" class="view hidden">
+    <h2>Shift</h2>
+    <p class="sub">Buka shift dulu sebelum transaksi</p>
+    <div class="card" id="shift-panel">
+      <div class="empty"><div class="spinner"></div></div>
+    </div>
+  </main>
+
+  <!-- ===== MODUL: VIEW MENU (placeholder Stage 4, owner) ===== -->
+  <main id="view-menu" class="view hidden">
+    <h2>Kelola Menu</h2>
+    <p class="sub">Produk, kategori, varian & staff</p>
+    <div class="card"><div class="empty">
+      <div class="emo">🍊</div>
+      <b>Kelola menu dipasang di Stage 4</b>
+      <small>CRUD produk/kategori/varian, atur harga, staff & PIN. Khusus owner.</small>
+    </div></div>
+  </main>
+
+  <!-- ===== MODUL: VIEW LAPORAN (placeholder Stage 5, owner) ===== -->
+  <main id="view-laporan" class="view hidden">
+    <h2>Laporan</h2>
+    <p class="sub">Penjualan, breakdown & export Excel</p>
+    <div class="card"><div class="empty">
+      <div class="emo">📊</div>
+      <b>Laporan dipasang di Stage 5-6</b>
+      <small>Bruto/neto/AOV, per produk & varian, per jam, log void/diskon, export .xlsx.</small>
+    </div></div>
+  </main>
+
+  <nav class="bottomnav" id="bottomnav"></nav>
+</div>
+
+<!-- ===== MODUL: DIALOG BUKA SHIFT ===== -->
+<dialog id="dlg-open-shift">
+  <form class="dlg-body" method="dialog" id="form-open-shift">
+    <h3>Buka shift</h3>
+    <p class="dlg-sub">Hitung uang modal di laci, masukin jumlahnya.</p>
+    <div class="field">
+      <label for="inp-opening">Modal awal (Rp)</label>
+      <input id="inp-opening" type="text" inputmode="numeric" placeholder="cth: 100.000" autocomplete="off">
+    </div>
+    <div class="dlg-actions">
+      <button class="btn btn-outline" value="cancel" formnovalidate>Batal</button>
+      <button class="btn btn-primary" id="btn-open-shift-go" value="ok">Buka shift</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ===== MODUL: DIALOG TUTUP SHIFT (blind close) ===== -->
+<dialog id="dlg-close-shift">
+  <form class="dlg-body" method="dialog" id="form-close-shift">
+    <h3>Tutup shift</h3>
+    <p class="dlg-sub">Hitung SEMUA uang tunai di laci (termasuk modal), masukin hasil hitungan fisik. Sistem yang cocokin.</p>
+    <div class="field">
+      <label for="inp-counted">Uang tunai terhitung (Rp)</label>
+      <input id="inp-counted" type="text" inputmode="numeric" placeholder="cth: 350.000" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="inp-shift-note">Catatan (opsional)</label>
+      <input id="inp-shift-note" type="text" placeholder="cth: ada uang sobek 2rb">
+    </div>
+    <div class="dlg-actions">
+      <button class="btn btn-outline" value="cancel" formnovalidate>Batal</button>
+      <button class="btn btn-citrus" id="btn-close-shift-go" value="ok">Tutup shift</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ===== MODUL: CONFIG ===== */
+const CFG = {
+  SUPABASE_URL: 'https://qgxemegfrokosohvxqcv.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFneGVtZWdmcm9rb3NvaHZ4cWN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNjE0MTEsImV4cCI6MjEwMDYzNzQxMX0.Nf5mLwrfYodc4zXwQgI0GFHI01G9j8FhLlIZ03R9lXA',
+};
+const db = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+
+/* ===== MODUL: STATE ===== */
+const S = {
+  role: null,              // 'owner' | 'pos' (role akun device)
+  staff: null,             // {token, staff_id, name, role} sesi PIN
+  view: null,
+  shift: null,             // shift terbuka (atau null)
+};
+const LS_KEY = 'nginum_staff_session';
+
+/* ===== MODUL: UTIL ===== */
+const $ = (id) => document.getElementById(id);
+const fmtRp = (n) => 'Rp ' + (n ?? 0).toLocaleString('id-ID');
+const fmtWaktu = (iso) => new Date(iso).toLocaleString('id-ID', {
+  timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+});
+function toast(msg, isErr = false) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = isErr ? 'show err' : 'show';
+  clearTimeout(t._h);
+  t._h = setTimeout(() => (t.className = ''), 2800);
+}
+function parseRp(str) {
+  const n = parseInt(String(str).replace(/[^\d]/g, ''), 10);
+  return Number.isFinite(n) ? n : null;
+}
+function bindRpInput(inp) {
+  inp.addEventListener('input', () => {
+    const n = parseRp(inp.value);
+    inp.value = n === null ? '' : n.toLocaleString('id-ID');
+  });
+}
+function showScreen(id) {
+  ['scr-boot', 'scr-device', 'scr-pin', 'scr-app'].forEach((s) =>
+    $(s).classList.toggle('hidden', s !== id));
+}
+function saveStaff() { localStorage.setItem(LS_KEY, JSON.stringify(S.staff)); }
+function loadStaff() {
+  try { S.staff = JSON.parse(localStorage.getItem(LS_KEY)) || null; }
+  catch { S.staff = null; }
+}
+function clearStaff() { S.staff = null; localStorage.removeItem(LS_KEY); }
+
+// Semua panggilan RPC lewat sini: sesi kadaluarsa otomatis balik ke layar PIN.
+async function rpc(fn, args) {
+  const { data, error } = await db.rpc(fn, args);
+  if (error) {
+    if ((error.message || '').includes('SESI_INVALID')) {
+      clearStaff();
+      toast('Sesi habis, masukin PIN lagi', true);
+      showPinScreen();
+      throw new Error('SESI_INVALID');
+    }
+    throw new Error(cleanErr(error.message));
+  }
+  return data;
+}
+function cleanErr(msg) {
+  if (!msg) return 'Terjadi kesalahan';
+  return msg.replace(/^.*?:\s*/, (m) => (m.length > 30 ? '' : m)).trim() || msg;
+}
+
+/* ===== MODUL: BOOT & ROUTING AUTH ===== */
+async function boot() {
+  showScreen('scr-boot');
+  loadStaff();
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { showScreen('scr-device'); return; }
+  await afterAuth();
+}
+
+async function afterAuth() {
+  showScreen('scr-boot');
+  $('boot-msg').textContent = 'Ngecek akun…';
+  let role = null;
+  try { role = await rpc('fn_role'); } catch (e) { /* jatuh ke bawah */ }
+  if (!role) {
+    await db.auth.signOut();
+    showScreen('scr-device');
+    showDeviceErr('Akun ini belum terdaftar di app_accounts. Cek Section 10 migration.');
+    return;
+  }
+  S.role = role;
+  if (role === 'pos' && !S.staff) { showPinScreen(); return; }
+  enterApp();
+}
+
+/* ===== MODUL: AUTH DEVICE ===== */
+function showDeviceErr(msg) {
+  const el = $('device-err');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+$('form-device').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('device-err').classList.add('hidden');
+  const btn = $('btn-device-login');
+  btn.disabled = true; btn.textContent = 'Masuk…';
+  const { error } = await db.auth.signInWithPassword({
+    email: $('dev-email').value.trim(),
+    password: $('dev-pass').value,
+  });
+  btn.disabled = false; btn.textContent = 'Masuk';
+  if (error) { showDeviceErr('Login gagal: email / password salah.'); return; }
+  $('dev-pass').value = '';
+  await afterAuth();
+});
+
+/* ===== MODUL: AUTH PIN ===== */
+let pinBuf = '';
+function showPinScreen() {
+  pinBuf = '';
+  renderPinDots();
+  $('pin-msg').textContent = '';
+  showScreen('scr-pin');
+}
+function renderPinDots() {
+  const wrap = $('pin-dots');
+  wrap.innerHTML = '';
+  for (let i = 0; i < Math.max(pinBuf.length, 4); i++) {
+    const d = document.createElement('span');
+    d.className = 'dot' + (i < pinBuf.length ? ' on' : '');
+    wrap.appendChild(d);
+  }
+  $('btn-pin-submit').disabled = !(pinBuf.length >= 4 && pinBuf.length <= 6);
+}
+$('numpad').addEventListener('click', (e) => {
+  const k = e.target.dataset?.k;
+  if (!k) return;
+  if (k === 'clear') pinBuf = '';
+  else if (k === 'back') pinBuf = pinBuf.slice(0, -1);
+  else if (pinBuf.length < 6) pinBuf += k;
+  renderPinDots();
+});
+$('btn-pin-submit').addEventListener('click', submitPin);
+async function submitPin() {
+  const btn = $('btn-pin-submit');
+  btn.disabled = true; btn.textContent = 'Ngecek…';
+  try {
+    const res = await rpc('pos_login', { p_pin: pinBuf });
+    S.staff = res;
+    saveStaff();
+    toast('Halo, ' + res.name + '! 👋');
+    enterApp();
+  } catch (err) {
+    $('pin-msg').textContent = err.message === 'SESI_INVALID' ? '' : err.message;
+    const card = $('pin-card');
+    card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
+    pinBuf = '';
+    renderPinDots();
+  } finally {
+    btn.textContent = 'Masuk';
+    renderPinDots();
+  }
+}
+$('btn-pin-back').addEventListener('click', async () => {
+  await db.auth.signOut();
+  clearStaff();
+  showScreen('scr-device');
+});
+
+/* ===== MODUL: APP SHELL & NAV ===== */
+const NAV = [
+  { id: 'kasir',   label: 'Kasir',   icon: '🧃', roles: ['pos', 'owner'] },
+  { id: 'riwayat', label: 'Riwayat', icon: '🧾', roles: ['pos', 'owner'] },
+  { id: 'shift',   label: 'Shift',   icon: '⏱️', roles: ['pos', 'owner'] },
+  { id: 'menu',    label: 'Menu',    icon: '🍊', roles: ['owner'] },
+  { id: 'laporan', label: 'Laporan', icon: '📊', roles: ['owner'] },
+];
+function enterApp() {
+  showScreen('scr-app');
+  buildNav();
+  renderUserChip();
+  setView(S.role === 'owner' ? 'laporan' : 'kasir');
+  refreshShift();
+}
+function buildNav() {
+  const nav = $('bottomnav');
+  nav.innerHTML = '';
+  NAV.filter((n) => n.roles.includes(S.role)).forEach((n) => {
+    const b = document.createElement('button');
+    b.innerHTML = `<span class="ni">${n.icon}</span><span>${n.label}</span>`;
+    b.addEventListener('click', () => setView(n.id));
+    b.dataset.view = n.id;
+    nav.appendChild(b);
+  });
+}
+function setView(id) {
+  S.view = id;
+  ['kasir', 'riwayat', 'shift', 'menu', 'laporan'].forEach((v) =>
+    $('view-' + v).classList.toggle('hidden', v !== id));
+  document.querySelectorAll('#bottomnav button').forEach((b) =>
+    b.classList.toggle('active', b.dataset.view === id));
+  if (id === 'shift') refreshShift();
+}
+function renderUserChip() {
+  const chip = $('chip-user');
+  const lock = $('btn-lock');
+  if (S.staff) {
+    chip.textContent = '👤 ' + S.staff.name;
+    chip.classList.remove('hidden');
+    lock.classList.remove('hidden');
+  } else if (S.role === 'owner') {
+    chip.textContent = '👤 Owner (dashboard)';
+    chip.classList.remove('hidden');
+    lock.classList.add('hidden');
+  } else {
+    chip.classList.add('hidden');
+    lock.classList.add('hidden');
+  }
+}
+$('btn-lock').addEventListener('click', async () => {
+  if (S.staff?.token) { try { await rpc('pos_logout', { p_session_token: S.staff.token }); } catch {} }
+  clearStaff();
+  renderUserChip();
+  if (S.role === 'pos') showPinScreen();
+  else { toast('Sesi kasir dikunci'); refreshShiftPanel(); }
+});
+
+/* ===== MODUL: SHIFT ===== */
+async function refreshShift() {
+  try {
+    const { data, error } = await db.from('shifts')
+      .select('id, business_date, opened_at, opening_cash, status')
+      .eq('status', 'open')
+      .maybeSingle();
+    if (error) throw error;
+    S.shift = data || null;
+  } catch { S.shift = null; }
+  renderShiftChip();
+  refreshShiftPanel();
+}
+function renderShiftChip() {
+  const chip = $('chip-shift');
+  if (S.shift) {
+    chip.className = 'chip chip-shift-open';
+    chip.innerHTML = `<span class="dot-s"></span><span>Shift buka · ${fmtWaktu(S.shift.opened_at)}</span>`;
+  } else {
+    chip.className = 'chip chip-shift-closed';
+    chip.innerHTML = `<span class="dot-s"></span><span>Shift belum dibuka</span>`;
+  }
+}
+function refreshShiftPanel() {
+  const panel = $('shift-panel');
+  if (S.shift) {
+    panel.innerHTML = `
+      <div class="shift-row"><span class="k">Status</span><span class="v" style="color:var(--leaf-dark)">Terbuka</span></div>
+      <div class="shift-row"><span class="k">Dibuka</span><span class="v num">${fmtWaktu(S.shift.opened_at)} WIB</span></div>
+      <div class="shift-row"><span class="k">Modal awal</span><span class="v num">${fmtRp(S.shift.opening_cash)}</span></div>
+      <div class="shift-actions">
+        <button class="btn btn-citrus" id="btn-close-shift">Tutup shift</button>
+      </div>`;
+    $('btn-close-shift').addEventListener('click', () => {
+      if (!requireStaff()) return;
+      $('inp-counted').value = '';
+      $('inp-shift-note').value = '';
+      $('dlg-close-shift').showModal();
+    });
+  } else {
+    const hint = S.staff
+      ? 'Buka shift dulu sebelum mulai transaksi.'
+      : 'Masuk PIN dulu buat buka shift.';
+    panel.innerHTML = `
+      <div class="empty">
+        <div class="emo">⏱️</div>
+        <b>Belum ada shift terbuka</b>
+        <small>${hint}</small>
+      </div>
+      <div class="shift-actions">
+        <button class="btn btn-primary" id="btn-open-shift">Buka shift</button>
+      </div>`;
+    $('btn-open-shift').addEventListener('click', () => {
+      if (!requireStaff()) return;
+      $('inp-opening').value = '';
+      $('dlg-open-shift').showModal();
+    });
+  }
+}
+// Aksi shift butuh sesi staff (PIN). Owner dashboard tanpa PIN diarahkan masuk PIN dulu.
+function requireStaff() {
+  if (S.staff) return true;
+  toast('Masuk PIN dulu ya', true);
+  showPinScreen();
+  return false;
+}
+
+$('form-open-shift').addEventListener('submit', async (e) => {
+  if (e.submitter?.value === 'cancel') return;
+  e.preventDefault();
+  const n = parseRp($('inp-opening').value);
+  if (n === null) { toast('Isi modal awal dulu', true); return; }
+  const btn = $('btn-open-shift-go');
+  btn.disabled = true;
+  try {
+    await rpc('open_shift', { p_session_token: S.staff.token, p_opening_cash: n });
+    $('dlg-open-shift').close();
+    toast('Shift dibuka. Semangat jualan! 💪');
+    await refreshShift();
+  } catch (err) {
+    if (err.message !== 'SESI_INVALID') toast(err.message, true);
+    $('dlg-open-shift').close();
+  } finally { btn.disabled = false; }
+});
+
+$('form-close-shift').addEventListener('submit', async (e) => {
+  if (e.submitter?.value === 'cancel') return;
+  e.preventDefault();
+  const n = parseRp($('inp-counted').value);
+  if (n === null) { toast('Isi hasil hitungan kas dulu', true); return; }
+  const btn = $('btn-close-shift-go');
+  btn.disabled = true;
+  try {
+    const res = await rpc('close_shift', {
+      p_session_token: S.staff.token,
+      p_closing_cash_counted: n,
+      p_note: $('inp-shift-note').value.trim() || null,
+    });
+    $('dlg-close-shift').close();
+    if (res && 'variance' in res) {
+      // Owner: tampilkan hasil rekonsiliasi
+      const v = res.variance;
+      const cls = v === 0 ? '' : v > 0 ? 'variance-pos' : 'variance-neg';
+      const label = v === 0 ? 'Pas ✔' : (v > 0 ? 'Lebih ' : 'Kurang ') + fmtRp(Math.abs(v));
+      $('shift-panel').innerHTML = `
+        <div class="shift-row"><span class="k">Modal awal</span><span class="v num">${fmtRp(res.opening_cash)}</span></div>
+        <div class="shift-row"><span class="k">Penjualan tunai</span><span class="v num">${fmtRp(res.cash_sales)}</span></div>
+        <div class="shift-row"><span class="k">Penjualan QRIS</span><span class="v num">${fmtRp(res.qris_sales)}</span></div>
+        <div class="shift-row"><span class="k">Kas seharusnya</span><span class="v num">${fmtRp(res.expected)}</span></div>
+        <div class="shift-row"><span class="k">Kas terhitung</span><span class="v num">${fmtRp(res.counted)}</span></div>
+        <div class="shift-row"><span class="k">Selisih</span><span class="v num ${cls}">${label}</span></div>`;
+      toast('Shift ditutup');
+      S.shift = null;
+      renderShiftChip();
+    } else {
+      toast('Shift ditutup. Terima kasih! 🙏');
+      await refreshShift();
+    }
+  } catch (err) {
+    if (err.message !== 'SESI_INVALID') toast(err.message, true);
+  } finally { btn.disabled = false; }
+});
+
+/* ===== MODUL: INIT ===== */
+bindRpInput($('inp-opening'));
+bindRpInput($('inp-counted'));
+db.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT') { clearStaff(); showScreen('scr-device'); }
+});
+boot();
+</script>
+</body>
+</html>
