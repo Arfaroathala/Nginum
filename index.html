@@ -504,7 +504,7 @@ dialog::backdrop{background:rgba(27,42,32,.45)}
     </div>
     <div id="laporan-body"><div class="empty"><div class="spinner"></div></div></div>
     <div class="shift-actions">
-      <button class="btn btn-citrus" id="btn-export" disabled>⬇ Export Excel — Stage 6</button>
+      <button class="btn btn-citrus" id="btn-export">⬇ Export Excel</button>
     </div>
   </main>
 
@@ -865,6 +865,7 @@ dialog::backdrop{background:rgba(27,42,32,.45)}
 <div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 /* ===== MODUL: CONFIG ===== */
 const CFG = {
@@ -2658,6 +2659,357 @@ $('btn-xd-go').addEventListener('click', async () => {
     if (err.message !== 'SESI_INVALID') toast(err.message, true);
   } finally { btn.disabled = false; }
 });
+
+/* ===== MODUL: EXPORT EXCEL ===== */
+const XF = { rp: '#,##0', tgl: 'dd/mm/yyyy', jam: 'dd/mm/yyyy hh:mm' };
+// Bikin sheet dari array-of-array. spec kolom: {w:lebar, t:'n'|'s', z:format}
+function mkSheet(head, rows, cols) {
+  const ws = XLSX.utils.aoa_to_sheet([head, ...rows]);
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  // header bold + freeze
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const ref = XLSX.utils.encode_cell({ r: 0, c });
+    if (ws[ref]) ws[ref].s = { font: { bold: true } };
+  }
+  // format angka & tanggal per kolom
+  (cols || []).forEach((spec, ci) => {
+    if (!spec?.z) return;
+    for (let r = 1; r <= range.e.r; r++) {
+      const ref = XLSX.utils.encode_cell({ r, c: ci });
+      if (ws[ref] && ws[ref].v !== null && ws[ref].v !== '') ws[ref].z = spec.z;
+    }
+  });
+  ws['!cols'] = (cols || []).map((spec, i) => ({
+    wch: spec?.w || Math.max(10, Math.min(42, head[i] ? String(head[i]).length + 4 : 12)),
+  }));
+  ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+  return ws;
+}
+const wibDate = (iso) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+const wibJam = (iso) => new Date(iso).toLocaleTimeString('id-ID',
+  { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false });
+const wibHour = (iso) => +new Date(iso).toLocaleString('en-GB',
+  { timeZone: 'Asia/Jakarta', hour: '2-digit', hour12: false });
+const chTxt = (c) => (c === 'dine_in' ? 'Makan di tempat' : 'Bawa pulang');
+const pmTxt = (m) => (m === 'cash' ? 'Tunai' : 'QRIS');
+
+$('btn-export').addEventListener('click', async () => {
+  if (!REP.raw) { toast('Muat laporannya dulu', true); return; }
+  const btn = $('btn-export');
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = 'Menyiapkan file…';
+  try {
+    await buildWorkbook();
+    toast('File Excel terunduh ✔');
+  } catch (err) {
+    toast('Gagal export: ' + err.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+});
+
+async function buildWorkbook() {
+  const { orders, items, opts, shifts, staff, expenses } = REP.raw;
+  const staffName = (id) => staff.find((s) => s.id === id)?.name || '';
+  const paid = orders.filter((o) => o.status === 'paid');
+  const paidIds = new Set(paid.map((o) => o.id));
+  const pItems = items.filter((i) => paidIds.has(i.order_id));
+  const itemQty = new Map(pItems.map((i) => [i.id, i.qty]));
+  const pOpts = opts.filter((x) => itemQty.has(x.order_item_id));
+  const exps = (expenses || []).filter((x) => !x.is_deleted);
+  const orderById = new Map(orders.map((o) => [o.id, o]));
+  const itemById = new Map(items.map((i) => [i.id, i]));
+
+  const bruto = paid.reduce((a, o) => a + o.subtotal, 0);
+  const disc = paid.reduce((a, o) => a + o.discount_amount, 0);
+  const neto = paid.reduce((a, o) => a + o.total, 0);
+  const totalExp = exps.reduce((a, x) => a + x.amount, 0);
+
+  const wb = XLSX.utils.book_new();
+  const add = (name, ws) => XLSX.utils.book_append_sheet(wb, ws, name);
+  const N = { z: XF.rp, w: 14 };
+  const T = { z: XF.tgl, w: 12 };
+
+  /* --- Sheet: Ringkasan --- */
+  {
+    const cash = paid.filter((o) => o.payment_method === 'cash');
+    const qris = paid.filter((o) => o.payment_method === 'qris');
+    const din = paid.filter((o) => o.channel === 'dine_in');
+    const tak = paid.filter((o) => o.channel === 'takeaway');
+    const voids = orders.filter((o) => o.status === 'void');
+    const rows = [
+      ['Periode', `${fmtTgl(REP.a)} s/d ${fmtTgl(REP.b)}`],
+      ['Dibuat', new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) + ' WIB'],
+      [],
+      ['PENJUALAN', ''],
+      ['Bruto (sebelum diskon)', bruto],
+      ['Total diskon', disc],
+      ['Omzet neto', neto],
+      ['Jumlah transaksi', paid.length],
+      ['Rata-rata per transaksi', paid.length ? Math.round(neto / paid.length) : 0],
+      [],
+      ['METODE BAYAR', ''],
+      ['Tunai — transaksi', cash.length],
+      ['Tunai — nilai', cash.reduce((a, o) => a + o.total, 0)],
+      ['QRIS — transaksi', qris.length],
+      ['QRIS — nilai', qris.reduce((a, o) => a + o.total, 0)],
+      [],
+      ['CHANNEL', ''],
+      ['Makan di tempat — transaksi', din.length],
+      ['Makan di tempat — nilai', din.reduce((a, o) => a + o.total, 0)],
+      ['Bawa pulang — transaksi', tak.length],
+      ['Bawa pulang — nilai', tak.reduce((a, o) => a + o.total, 0)],
+      [],
+      ['PENGELUARAN', ''],
+      ['Dari laci kasir', exps.filter((x) => x.paid_from === 'cash_drawer').reduce((a, x) => a + x.amount, 0)],
+      ['Dari luar', exps.filter((x) => x.paid_from === 'luar').reduce((a, x) => a + x.amount, 0)],
+      ['Total pengeluaran', totalExp],
+      [],
+      ['HASIL', ''],
+      ['Omzet neto − pengeluaran', neto - totalExp],
+      [],
+      ['VOID (tidak dihitung di omzet)', ''],
+      ['Jumlah void', voids.length],
+      ['Nilai void', voids.reduce((a, o) => a + o.total, 0)],
+    ];
+    add('Ringkasan', mkSheet(['Keterangan', 'Nilai'], rows, [{ w: 32 }, N]));
+  }
+
+  /* --- Sheet: Rekap_Harian --- */
+  {
+    const m = new Map();
+    const t = (d) => {
+      if (!m.has(d)) m.set(d, { trx: 0, bruto: 0, disc: 0, neto: 0, cash: 0, qris: 0, exp: 0, void: 0 });
+      return m.get(d);
+    };
+    paid.forEach((o) => {
+      const r = t(o.business_date);
+      r.trx += 1; r.bruto += o.subtotal; r.disc += o.discount_amount; r.neto += o.total;
+      if (o.payment_method === 'cash') r.cash += o.total; else r.qris += o.total;
+    });
+    orders.filter((o) => o.status === 'void').forEach((o) => { t(o.business_date).void += 1; });
+    exps.forEach((x) => { t(x.business_date).exp += x.amount; });
+    const rows = [...m.entries()].sort().map(([d, r]) =>
+      [d, r.trx, r.bruto, r.disc, r.neto, r.cash, r.qris, r.exp, r.neto - r.exp, r.void]);
+    rows.push(['TOTAL', paid.length, bruto, disc, neto,
+      paid.filter((o) => o.payment_method === 'cash').reduce((a, o) => a + o.total, 0),
+      paid.filter((o) => o.payment_method === 'qris').reduce((a, o) => a + o.total, 0),
+      totalExp, neto - totalExp, orders.filter((o) => o.status === 'void').length]);
+    add('Rekap_Harian', mkSheet(
+      ['Tanggal', 'Transaksi', 'Bruto', 'Diskon', 'Neto', 'Tunai', 'QRIS', 'Pengeluaran', 'Sisa', 'Void'],
+      rows, [T, { w: 11 }, N, N, N, N, N, N, N, { w: 8 }]));
+  }
+
+  /* --- Sheet: Ringkasan_Bulanan --- */
+  {
+    const m = new Map();
+    const t = (k) => {
+      if (!m.has(k)) m.set(k, { trx: 0, neto: 0, exp: 0 });
+      return m.get(k);
+    };
+    paid.forEach((o) => { const r = t(o.business_date.slice(0, 7)); r.trx += 1; r.neto += o.total; });
+    exps.forEach((x) => { t(x.business_date.slice(0, 7)).exp += x.amount; });
+    const rows = [...m.entries()].sort().map(([k, r]) => {
+      const [y, mo] = k.split('-');
+      return [`${mo}/${y}`, r.trx, r.neto, r.exp, r.neto - r.exp,
+        r.trx ? Math.round(r.neto / r.trx) : 0];
+    });
+    add('Ringkasan_Bulanan', mkSheet(
+      ['Bulan', 'Transaksi', 'Omzet Neto', 'Pengeluaran', 'Sisa', 'Rata-rata/trx'],
+      rows, [{ w: 12 }, { w: 11 }, N, N, N, N]));
+  }
+
+  /* --- Sheet: Raw_Transaksi (termasuk void, ditandai) --- */
+  {
+    const rows = orders.map((o) => [
+      o.order_no, o.business_date, wibJam(o.created_at), o.cashier_name_snapshot,
+      chTxt(o.channel), pmTxt(o.payment_method), o.subtotal,
+      o.discount_type === 'none' ? '' : (o.discount_type === 'percent' ? o.discount_value + '%' : 'Rp'),
+      o.discount_amount, o.discount_reason || '', o.total,
+      o.cash_received ?? '', o.change_amount ?? '',
+      o.status === 'void' ? 'VOID' : 'Sah',
+      o.void_reason || '', o.voided_at ? wibJam(o.voided_at) : '', o.shift_id, o.note || '',
+    ]);
+    add('Raw_Transaksi', mkSheet(
+      ['No Order', 'Tanggal', 'Jam', 'Kasir', 'Channel', 'Metode', 'Subtotal', 'Jenis Diskon',
+       'Diskon', 'Alasan Diskon', 'Total', 'Tunai Diterima', 'Kembalian', 'Status',
+       'Alasan Void', 'Jam Void', 'Shift', 'Catatan'],
+      rows, [{ w: 18 }, T, { w: 8 }, { w: 14 }, { w: 16 }, { w: 10 }, N, { w: 12 }, N,
+             { w: 22 }, N, N, N, { w: 9 }, { w: 22 }, { w: 10 }, { w: 7 }, { w: 20 }]));
+  }
+
+  /* --- Sheet: Raw_Item --- */
+  {
+    const optTxt = (iid) => opts.filter((x) => x.order_item_id === iid)
+      .map((x) => `${x.group_name_snapshot}: ${x.option_name_snapshot}${x.price_delta_snapshot ? ` (+${x.price_delta_snapshot})` : ''}`)
+      .join(' | ');
+    const rows = items.map((i) => {
+      const o = orderById.get(i.order_id) || {};
+      return [
+        o.order_no || '', o.business_date || '', o.status === 'void' ? 'VOID' : 'Sah',
+        i.category_name_snapshot, i.product_name_snapshot, optTxt(i.id),
+        i.base_price_snapshot, i.unit_price - i.base_price_snapshot, i.unit_price,
+        i.qty, i.item_total, i.note || '',
+      ];
+    });
+    add('Raw_Item', mkSheet(
+      ['No Order', 'Tanggal', 'Status', 'Kategori', 'Produk', 'Varian',
+       'Harga Dasar', 'Tambahan Varian', 'Harga Satuan', 'Qty', 'Total Baris', 'Catatan'],
+      rows, [{ w: 18 }, T, { w: 8 }, { w: 14 }, { w: 24 }, { w: 40 }, N, N, N, { w: 7 }, N, { w: 20 }]));
+  }
+
+  /* --- Sheet: Per_Produk --- */
+  {
+    const m = new Map();
+    pItems.forEach((i) => {
+      const k = i.category_name_snapshot + '||' + i.product_name_snapshot;
+      const cur = m.get(k) || { qty: 0, rev: 0, trx: new Set() };
+      cur.qty += i.qty; cur.rev += i.item_total; cur.trx.add(i.order_id);
+      m.set(k, cur);
+    });
+    // produk aktif yang 0 penjualan tetap masuk, biar keliatan yang ga laku
+    S.menu.prods.forEach((p) => {
+      const cat = S.menu.cats.find((c) => c.id === p.category_id)?.name || '';
+      const k = cat + '||' + p.name;
+      if (!m.has(k)) m.set(k, { qty: 0, rev: 0, trx: new Set() });
+    });
+    const rows = [...m.entries()]
+      .map(([k, v]) => {
+        const [cat, name] = k.split('||');
+        return [cat, name, v.qty, v.rev, v.trx.size, v.qty ? Math.round(v.rev / v.qty) : 0];
+      })
+      .sort((a, b) => b[2] - a[2] || b[3] - a[3]);
+    rows.push(['', 'TOTAL', rows.reduce((a, r) => a + r[2], 0), rows.reduce((a, r) => a + r[3], 0), '', '']);
+    add('Per_Produk', mkSheet(
+      ['Kategori', 'Produk', 'Qty Terjual', 'Omzet', 'Jml Transaksi', 'Harga Rata-rata'],
+      rows, [{ w: 14 }, { w: 26 }, { w: 12 }, N, { w: 13 }, N]));
+  }
+
+  /* --- Sheet: Per_Varian --- */
+  {
+    const m = new Map();
+    pOpts.forEach((x) => {
+      const q = itemQty.get(x.order_item_id) || 0;
+      const it = itemById.get(x.order_item_id);
+      const k = x.group_name_snapshot + '||' + x.option_name_snapshot;
+      const cur = m.get(k) || { qty: 0, rev: 0, prods: new Set() };
+      cur.qty += q; cur.rev += x.price_delta_snapshot * q;
+      if (it) cur.prods.add(it.product_name_snapshot);
+      m.set(k, cur);
+    });
+    const rows = [...m.entries()]
+      .map(([k, v]) => {
+        const [g, n] = k.split('||');
+        return [g, n, v.qty, v.rev, v.prods.size];
+      })
+      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : b[2] - a[2]));
+    add('Per_Varian', mkSheet(
+      ['Grup Varian', 'Opsi', 'Qty Dipilih', 'Omzet Tambahan', 'Jml Produk Berbeda'],
+      rows, [{ w: 18 }, { w: 24 }, { w: 12 }, N, { w: 18 }]));
+  }
+
+  /* --- Sheet: Per_Metode_Bayar --- */
+  {
+    const m = new Map();
+    paid.forEach((o) => {
+      const k = o.business_date + '||' + o.payment_method;
+      const cur = m.get(k) || { n: 0, v: 0 };
+      cur.n += 1; cur.v += o.total;
+      m.set(k, cur);
+    });
+    const rows = [...m.entries()].sort().map(([k, v]) => {
+      const [d, pm] = k.split('||');
+      return [d, pmTxt(pm), v.n, v.v];
+    });
+    add('Per_Metode_Bayar', mkSheet(
+      ['Tanggal', 'Metode', 'Transaksi', 'Nilai'], rows, [T, { w: 12 }, { w: 11 }, N]));
+  }
+
+  /* --- Sheet: Per_Jam --- */
+  {
+    const m = new Map();
+    paid.forEach((o) => {
+      const h = wibHour(o.created_at);
+      const cur = m.get(h) || { n: 0, v: 0, qty: 0 };
+      cur.n += 1; cur.v += o.total;
+      m.set(h, cur);
+    });
+    pItems.forEach((i) => {
+      const o = orderById.get(i.order_id);
+      if (!o) return;
+      const h = wibHour(o.created_at);
+      if (m.has(h)) m.get(h).qty += i.qty;
+    });
+    const rows = [...m.entries()].sort((a, b) => a[0] - b[0]).map(([h, v]) =>
+      [String(h).padStart(2, '0') + ':00', v.n, v.qty, v.v, v.n ? Math.round(v.v / v.n) : 0]);
+    add('Per_Jam', mkSheet(
+      ['Jam (WIB)', 'Transaksi', 'Qty Item', 'Omzet', 'Rata-rata/trx'],
+      rows, [{ w: 11 }, { w: 11 }, { w: 10 }, N, N]));
+  }
+
+  /* --- Sheet: Pengeluaran --- */
+  {
+    const rows = (expenses || []).map((x) => [
+      x.business_date, wibJam(x.created_at), x.category_name_snapshot, x.description,
+      x.amount, x.paid_from === 'cash_drawer' ? 'Laci kasir' : 'Dari luar',
+      x.staff_name_snapshot, x.is_deleted ? 'DIHAPUS' : (x.updated_at ? 'Diubah' : 'Sah'),
+      x.deleted_reason || '', x.note || '',
+    ]);
+    rows.push(['TOTAL (tidak termasuk yang dihapus)', '', '', '', totalExp, '', '', '', '', '']);
+    add('Pengeluaran', mkSheet(
+      ['Tanggal', 'Jam', 'Kategori', 'Keterangan', 'Jumlah', 'Sumber Dana',
+       'Dicatat Oleh', 'Status', 'Alasan Hapus', 'Catatan'],
+      rows, [T, { w: 8 }, { w: 24 }, { w: 34 }, N, { w: 14 }, { w: 14 }, { w: 10 }, { w: 22 }, { w: 20 }]));
+  }
+
+  /* --- Sheet: Shift --- */
+  {
+    const rows = shifts.map((s) => {
+      const so = paid.filter((o) => o.shift_id === s.id);
+      const cashSales = so.filter((o) => o.payment_method === 'cash').reduce((a, o) => a + o.total, 0);
+      const qrisSales = so.filter((o) => o.payment_method === 'qris').reduce((a, o) => a + o.total, 0);
+      const out = exps.filter((x) => x.shift_id === s.id).reduce((a, x) => a + x.amount, 0);
+      return [
+        s.business_date, staffName(s.opened_by), wibJam(s.opened_at), s.opening_cash,
+        cashSales, qrisSales, out,
+        s.status === 'closed' ? s.system_cash_expected : '',
+        s.status === 'closed' ? s.closing_cash_counted : '',
+        s.status === 'closed' ? s.variance : '',
+        s.closed_by ? staffName(s.closed_by) : '', s.closed_at ? wibJam(s.closed_at) : '',
+        s.status === 'closed' ? 'Ditutup' : 'Masih buka', s.note || '',
+      ];
+    });
+    add('Shift', mkSheet(
+      ['Tanggal', 'Dibuka Oleh', 'Jam Buka', 'Modal Awal', 'Penjualan Tunai', 'Penjualan QRIS',
+       'Pengeluaran Laci', 'Kas Seharusnya', 'Kas Terhitung', 'Selisih', 'Ditutup Oleh',
+       'Jam Tutup', 'Status', 'Catatan'],
+      rows, [T, { w: 14 }, { w: 10 }, N, N, N, N, N, N, N, { w: 14 }, { w: 10 }, { w: 12 }, { w: 20 }]));
+  }
+
+  /* --- Sheet: Log_Audit --- */
+  {
+    const { data: audit } = await db.from('audit_log')
+      .select('*')
+      .gte('created_at', REP.a + 'T00:00:00+07:00')
+      .lte('created_at', REP.b + 'T23:59:59+07:00')
+      .order('id', { ascending: false })
+      .limit(3000);
+    const rows = (audit || []).map((a) => [
+      wibDate(a.created_at), wibJam(a.created_at), a.actor_name || '', a.action,
+      a.entity_type, a.entity_id || '', a.reason || '',
+      a.before_json ? JSON.stringify(a.before_json).slice(0, 300) : '',
+      a.after_json ? JSON.stringify(a.after_json).slice(0, 300) : '',
+    ]);
+    add('Log_Audit', mkSheet(
+      ['Tanggal', 'Jam', 'Pelaku', 'Aksi', 'Objek', 'ID', 'Alasan', 'Sebelum', 'Sesudah'],
+      rows, [T, { w: 8 }, { w: 14 }, { w: 16 }, { w: 16 }, { w: 10 }, { w: 22 }, { w: 46 }, { w: 46 }]));
+  }
+
+  const fn = `Nginum_Laporan_${REP.a.replace(/-/g, '')}_sd_${REP.b.replace(/-/g, '')}.xlsx`;
+  XLSX.writeFile(wb, fn, { compression: true });
+}
 
 /* ===== MODUL: INIT ===== */
 bindRpInput($('inp-opening'));
