@@ -151,6 +151,10 @@ input,select,textarea{font:inherit}
   font-size:11.5px;font-weight:700;color:var(--muted);max-width:140px;
 }
 .bottomnav button .ni{font-size:21px;line-height:1}
+@media (max-width:430px){
+  .bottomnav button{font-size:10px;gap:2px}
+  .bottomnav button .ni{font-size:19px}
+}
 .bottomnav button.active{color:var(--leaf)}
 .bottomnav button.active .ni{transform:translateY(-1px)}
 
@@ -307,6 +311,22 @@ dialog::backdrop{background:rgba(27,42,32,.45)}
 .rep-tbl .tr-num{text-align:right;font-weight:700}
 @media (min-width:900px){.rep-cards{grid-template-columns:repeat(3,1fr)}.rep-card.big{grid-column:auto}}
 
+/* ===== MODUL: PENGELUARAN ===== */
+.exp-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.exp-total{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:12px}
+.exp-total .et-l{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.exp-total .et-v{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--danger)}
+.exp-total .et-s{font-size:12.5px;color:var(--muted);margin-top:4px}
+.exp-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 0;border-bottom:1px dashed var(--line);cursor:pointer;min-height:44px}
+.exp-row:last-child{border-bottom:0}
+.exp-row .en{font-weight:700;font-size:14px}
+.exp-row .es{color:var(--muted);font-size:12.5px;margin-top:2px}
+.exp-row .ev{font-weight:800;white-space:nowrap;color:var(--danger)}
+.tag-src{font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:7px;background:var(--amber-bg);color:#9A5B00}
+.tag-src.luar{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.date-nav{display:flex;gap:8px;align-items:center}
+.date-nav input{min-height:44px;padding:8px 10px;border:1.5px solid var(--line);border-radius:12px;background:#fff;font-size:14px}
+
 /* ===== MODUL: RESPONSIVE ===== */
 @media (min-width:900px){
   .bottomnav{top:0;bottom:auto;left:auto;right:0;width:auto;position:static}
@@ -333,7 +353,7 @@ dialog::backdrop{background:rgba(27,42,32,.45)}
 <div id="scr-device" class="screen hidden">
   <div class="center-wrap">
     <div class="auth-card">
-      <div class="brand"><div class="glass">N</div><h1>Nginum<span></span></h1></div>
+      <div class="brand"><div class="glass">N</div><h1>Nginum<span>·POS</span></h1></div>
       <p class="tagline">Login sekali per device. Akun kasir pakai akun device.</p>
       <div id="device-err" class="form-err hidden"></div>
       <form id="form-device">
@@ -355,7 +375,7 @@ dialog::backdrop{background:rgba(27,42,32,.45)}
 <div id="scr-pin" class="screen hidden">
   <div class="center-wrap">
     <div class="auth-card pin-card" id="pin-card">
-      <div class="brand"><div class="glass">N</div><h1>Nginum<span></span></h1></div>
+      <div class="brand"><div class="glass">N</div><h1>Nginum<span>·POS</span></h1></div>
       <p class="pin-staff-hint">Masukin PIN kamu buat mulai jaga kasir</p>
       <div class="pin-dots" id="pin-dots"></div>
       <p class="pin-msg" id="pin-msg"></p>
@@ -424,6 +444,28 @@ dialog::backdrop{background:rgba(27,42,32,.45)}
     </div>
   </main>
 
+  <!-- ===== MODUL: VIEW PENGELUARAN ===== -->
+  <main id="view-biaya" class="view hidden">
+    <h2>Pengeluaran</h2>
+    <p class="sub">Catat belanja & biaya operasional harian</p>
+    <div class="exp-head">
+      <div class="date-nav">
+        <button class="btn btn-outline" id="btn-exp-prev" style="min-height:44px;padding:0 12px">‹</button>
+        <input type="date" id="exp-date">
+        <button class="btn btn-outline" id="btn-exp-next" style="min-height:44px;padding:0 12px">›</button>
+      </div>
+    </div>
+    <div class="exp-total">
+      <div class="et-l">Total pengeluaran</div>
+      <div class="et-v num" id="exp-total-v">Rp 0</div>
+      <div class="et-s" id="exp-total-s">—</div>
+    </div>
+    <div class="card">
+      <div id="exp-list"><div class="empty"><div class="spinner"></div></div></div>
+      <div class="shift-actions"><button class="btn btn-primary" id="btn-exp-add">＋ Catat pengeluaran</button></div>
+    </div>
+  </main>
+
   <!-- ===== MODUL: VIEW KELOLA MENU (OWNER) ===== -->
   <main id="view-menu" class="view hidden">
     <h2>Kelola Menu</h2>
@@ -432,6 +474,7 @@ dialog::backdrop{background:rgba(27,42,32,.45)}
       <button data-t="prod" class="on">Produk</button>
       <button data-t="cat">Kategori</button>
       <button data-t="grp">Varian</button>
+      <button data-t="ecat">Kat. Biaya</button>
       <button data-t="staff">Staff</button>
     </div>
     <div class="card">
@@ -761,6 +804,64 @@ dialog::backdrop{background:rgba(27,42,32,.45)}
   </div>
 </dialog>
 
+<!-- ===== MODUL: DIALOG PENGELUARAN ===== -->
+<dialog id="dlg-exp">
+  <div class="dlg-body">
+    <h3 id="xe-title">Catat pengeluaran</h3>
+    <p class="dlg-sub" id="xe-sub"></p>
+    <div class="dlg-scroll">
+      <div class="field"><label for="xe-cat">Kategori</label><select id="xe-cat" class="inp-select"></select></div>
+      <div class="field"><label for="xe-desc">Keterangan</label>
+        <input id="xe-desc" type="text" placeholder="cth: Beli mangga harum manis 5kg"></div>
+      <div class="field"><label for="xe-amount">Jumlah (Rp)</label>
+        <input id="xe-amount" type="text" inputmode="numeric" placeholder="cth: 75.000"></div>
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px">Sumber dana</label>
+      <div class="seg" id="seg-src">
+        <button data-src="cash_drawer" class="on">Dari laci kasir</button>
+        <button data-src="luar">Dari luar</button>
+      </div>
+      <div class="field"><label for="xe-note">Catatan (opsional)</label>
+        <input id="xe-note" type="text" placeholder="cth: nota ada di map"></div>
+      <div class="adm-hint" id="xe-hint">"Dari laci" = uang diambil dari kas — otomatis dipotong pas tutup shift. "Dari luar" = pakai duit pribadi/transfer, kas laci ga kesentuh.</div>
+    </div>
+    <div class="dlg-actions">
+      <button class="btn btn-outline" id="btn-xe-cancel">Batal</button>
+      <button class="btn btn-primary" id="btn-xe-save">Simpan</button>
+    </div>
+    <button class="btn btn-danger-outline hidden" id="btn-xe-del" style="width:100%;margin-top:10px">Hapus catatan ini</button>
+  </div>
+</dialog>
+
+<!-- ===== MODUL: DIALOG HAPUS PENGELUARAN ===== -->
+<dialog id="dlg-exp-del">
+  <div class="dlg-body">
+    <h3>Hapus pengeluaran</h3>
+    <p class="dlg-sub" id="xd-sub"></p>
+    <div class="field"><label for="xd-reason">Alasan (wajib)</label>
+      <input id="xd-reason" type="text" placeholder="cth: dobel input"></div>
+    <div class="field"><label for="xd-pin">PIN owner</label>
+      <input id="xd-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off"></div>
+    <div class="dlg-actions">
+      <button class="btn btn-outline" id="btn-xd-cancel">Batal</button>
+      <button class="btn btn-citrus" id="btn-xd-go">Hapus</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ===== MODUL: DIALOG KATEGORI BIAYA ===== -->
+<dialog id="dlg-ecat">
+  <div class="dlg-body">
+    <h3 id="ee-title">Kategori biaya</h3>
+    <div class="field"><label for="ee-name">Nama</label><input id="ee-name" type="text"></div>
+    <div class="field"><label for="ee-sort">Urutan tampil</label><input id="ee-sort" type="text" inputmode="numeric" placeholder="0"></div>
+    <div class="avail-row"><span>Aktif</span><label class="switch"><input type="checkbox" id="ee-active"><span class="tr"></span></label></div>
+    <div class="dlg-actions">
+      <button class="btn btn-outline" id="btn-ee-cancel">Batal</button>
+      <button class="btn btn-primary" id="btn-ee-save">Simpan</button>
+    </div>
+  </div>
+</dialog>
+
 <div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -947,6 +1048,7 @@ const NAV = [
   { id: 'kasir',   label: 'Kasir',   icon: '🧃', roles: ['pos', 'owner'] },
   { id: 'riwayat', label: 'Riwayat', icon: '🧾', roles: ['pos', 'owner'] },
   { id: 'shift',   label: 'Shift',   icon: '⏱️', roles: ['pos', 'owner'] },
+  { id: 'biaya',   label: 'Biaya',   icon: '💸', roles: ['pos', 'owner'] },
   { id: 'menu',    label: 'Menu',    icon: '🍊', roles: ['owner'] },
   { id: 'laporan', label: 'Laporan', icon: '📊', roles: ['owner'] },
 ];
@@ -971,13 +1073,14 @@ function buildNav() {
 }
 function setView(id) {
   S.view = id;
-  ['kasir', 'riwayat', 'shift', 'menu', 'laporan'].forEach((v) =>
+  ['kasir', 'riwayat', 'shift', 'biaya', 'menu', 'laporan'].forEach((v) =>
     $('view-' + v).classList.toggle('hidden', v !== id));
   document.querySelectorAll('#bottomnav button').forEach((b) =>
     b.classList.toggle('active', b.dataset.view === id));
   if (id === 'shift') refreshShift();
   if (id === 'kasir') renderKasirGate();
   if (id === 'riwayat') loadRiwayat();
+  if (id === 'biaya') loadBiaya();
   if (id === 'menu') loadAdmin();
   if (id === 'laporan') loadLaporan();
 }
@@ -1114,6 +1217,7 @@ $('form-close-shift').addEventListener('submit', async (e) => {
         <div class="shift-row"><span class="k">Modal awal</span><span class="v num">${fmtRp(res.opening_cash)}</span></div>
         <div class="shift-row"><span class="k">Penjualan tunai</span><span class="v num">${fmtRp(res.cash_sales)}</span></div>
         <div class="shift-row"><span class="k">Penjualan QRIS</span><span class="v num">${fmtRp(res.qris_sales)}</span></div>
+        <div class="shift-row"><span class="k">Pengeluaran dari laci</span><span class="v num">− ${fmtRp(res.cash_out || 0)}</span></div>
         <div class="shift-row"><span class="k">Kas seharusnya</span><span class="v num">${fmtRp(res.expected)}</span></div>
         <div class="shift-row"><span class="k">Kas terhitung</span><span class="v num">${fmtRp(res.counted)}</span></div>
         <div class="shift-row"><span class="k">Selisih</span><span class="v num ${cls}">${label}</span></div>`;
@@ -1137,15 +1241,17 @@ const fmtJam = (iso) => new Date(iso).toLocaleTimeString('id-ID',
   { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' });
 
 async function loadMenu() {
-  const [cat, prod, grp, opt, pvg] = await Promise.all([
+  const [cat, prod, grp, opt, pvg, ecat] = await Promise.all([
     db.from('categories').select('*').eq('is_active', true).order('sort_order'),
     db.from('products').select('*').eq('is_active', true).order('sort_order'),
     db.from('variant_groups').select('*').eq('is_active', true).order('sort_order'),
     db.from('variant_options').select('*').eq('is_active', true).order('sort_order'),
     db.from('product_variant_groups').select('*'),
+    db.from('expense_categories').select('*').eq('is_active', true).order('sort_order'),
   ]);
   const err = cat.error || prod.error || grp.error || opt.error || pvg.error;
   if (err) { toast('Gagal muat menu: ' + err.message, true); return; }
+  S.expCats = ecat.error ? [] : ecat.data;
   S.menu = { cats: cat.data, prods: prod.data, groups: grp.data, opts: opt.data, pvg: pvg.data };
   if (!S.activeCat || !S.menu.cats.some((c) => c.id === S.activeCat)) {
     S.activeCat = S.menu.cats[0]?.id || null;
@@ -1799,7 +1905,7 @@ async function loadAdmin() {
     return;
   }
   $('adm-list').innerHTML = '<div class="empty"><div class="spinner"></div></div>';
-  const [cat, prod, grp, opt, pvg, staff] = await Promise.all([
+  const [cat, prod, grp, opt, pvg, staff, ecat] = await Promise.all([
     db.from('categories').select('*').order('sort_order'),
     db.from('products').select('*').order('sort_order'),
     db.from('variant_groups').select('*').order('sort_order'),
@@ -1807,13 +1913,17 @@ async function loadAdmin() {
     db.from('product_variant_groups').select('*'),
     // PENTING: jangan pernah select * di staff — kolom pin_hash memang diblok
     db.from('staff').select('id, name, role, is_active').order('id'),
+    db.from('expense_categories').select('*').order('sort_order'),
   ]);
   const err = cat.error || prod.error || grp.error || opt.error || pvg.error || staff.error;
   if (err) {
     $('adm-list').innerHTML = `<div class="empty"><b>Gagal muat</b><small>${esc(err.message)}</small></div>`;
     return;
   }
-  ADM.data = { cats: cat.data, prods: prod.data, groups: grp.data, opts: opt.data, pvg: pvg.data, staff: staff.data };
+  ADM.data = {
+    cats: cat.data, prods: prod.data, groups: grp.data, opts: opt.data,
+    pvg: pvg.data, staff: staff.data, ecats: ecat.error ? [] : ecat.data,
+  };
   renderAdmin();
 }
 const admGroupNames = (pid) => ADM.data.pvg
@@ -1824,7 +1934,7 @@ const admGroupNames = (pid) => ADM.data.pvg
 function renderAdmin() {
   document.querySelectorAll('#seg-adm button').forEach((b) =>
     b.classList.toggle('on', b.dataset.t === ADM.tab));
-  const labels = { prod: '＋ Tambah produk', cat: '＋ Tambah kategori', grp: '＋ Tambah grup varian', staff: '＋ Tambah staff' };
+  const labels = { prod: '＋ Tambah produk', cat: '＋ Tambah kategori', grp: '＋ Tambah grup varian', ecat: '＋ Tambah kategori biaya', staff: '＋ Tambah staff' };
   $('btn-adm-add').textContent = labels[ADM.tab];
   const D = ADM.data;
   if (!D) return;
@@ -1860,6 +1970,12 @@ function renderAdmin() {
       });
       h += `<div class="adm-grp-add" data-addopt="${g.id}">＋ Tambah opsi di ${esc(g.name)}</div>`;
     });
+  } else if (ADM.tab === 'ecat') {
+    D.ecats.forEach((c) => {
+      h += `<div class="adm-row${c.is_active ? '' : ' inactive'}" data-k="ecat" data-id="${c.id}">
+        <div><div class="an">${esc(c.name)} ${c.is_active ? '' : '<span class="badge b-off">nonaktif</span>'}</div>
+        <div class="as">urutan ${c.sort_order}</div></div><div>›</div></div>`;
+    });
   } else {
     D.staff.forEach((s) => {
       h += `<div class="adm-row${s.is_active ? '' : ' inactive'}" data-k="staff" data-id="${s.id}">
@@ -1887,6 +2003,7 @@ $('adm-list').addEventListener('click', (e) => {
   if (k === 'cat') openCatDlg(D.cats.find((x) => x.id === id));
   if (k === 'grp') openGrpDlg(D.groups.find((x) => x.id === id));
   if (k === 'opt') { const o = D.opts.find((x) => x.id === id); openOptDlg(o, o.variant_group_id); }
+  if (k === 'ecat') openEcatDlg(D.ecats.find((x) => x.id === id));
   if (k === 'staff') openStaffDlg(D.staff.find((x) => x.id === id));
 });
 $('btn-adm-add').addEventListener('click', () => {
@@ -1894,6 +2011,7 @@ $('btn-adm-add').addEventListener('click', () => {
   if (ADM.tab === 'prod') openProdDlg(null);
   if (ADM.tab === 'cat') openCatDlg(null);
   if (ADM.tab === 'grp') openGrpDlg(null);
+  if (ADM.tab === 'ecat') openEcatDlg(null);
   if (ADM.tab === 'staff') openStaffDlg(null);
 });
 async function admAfterSave(msg) {
@@ -2074,6 +2192,34 @@ $('btn-oe-save').addEventListener('click', async () => {
   finally { btn.disabled = false; }
 });
 
+/* --- Kategori biaya --- */
+function openEcatDlg(c) {
+  ADM.edit = c || null;
+  $('ee-title').textContent = c ? 'Edit kategori biaya' : 'Kategori biaya baru';
+  $('ee-name').value = c?.name || '';
+  $('ee-sort').value = c?.sort_order ?? '';
+  $('ee-active').checked = c ? c.is_active : true;
+  $('dlg-ecat').showModal();
+}
+$('btn-ee-cancel').addEventListener('click', () => $('dlg-ecat').close());
+$('btn-ee-save').addEventListener('click', async () => {
+  const name = $('ee-name').value.trim();
+  if (!name) { toast('Nama kategori wajib', true); return; }
+  const row = { name, sort_order: parseSort($('ee-sort').value), is_active: $('ee-active').checked };
+  const btn = $('btn-ee-save');
+  btn.disabled = true;
+  try {
+    const q = ADM.edit
+      ? db.from('expense_categories').update(row).eq('id', ADM.edit.id)
+      : db.from('expense_categories').insert(row);
+    const { error } = await q;
+    if (error) throw error;
+    $('dlg-ecat').close();
+    await admAfterSave('Kategori biaya tersimpan ✔');
+  } catch (err) { toast(err.message, true); }
+  finally { btn.disabled = false; }
+});
+
 /* --- Staff & PIN --- */
 function openStaffDlg(s) {
   ADM.staffEdit = s || null;
@@ -2179,26 +2325,28 @@ async function loadLaporan(keepRange) {
   body.innerHTML = '<div class="card"><div class="empty"><div class="spinner"></div></div></div>';
   try {
     if (!S.menu) await loadMenu();
-    const [ordersQ, shiftsQ, staffQ] = await Promise.all([
+    const [ordersQ, shiftsQ, staffQ, expQ] = await Promise.all([
       db.from('orders').select('*').gte('business_date', REP.a).lte('business_date', REP.b).order('created_at'),
       db.from('shifts').select('*').gte('business_date', REP.a).lte('business_date', REP.b).order('id'),
       db.from('staff').select('id, name'),
+      db.from('expenses').select('*').gte('business_date', REP.a).lte('business_date', REP.b).order('created_at'),
     ]);
     if (ordersQ.error) throw ordersQ.error;
     if (shiftsQ.error) throw shiftsQ.error;
+    if (expQ.error) throw expQ.error;
     const orders = ordersQ.data;
     const oids = orders.map((o) => o.id);
     const items = oids.length ? await fetchIn('order_items', 'order_id', oids, '*') : [];
     const iids = items.map((i) => i.id);
     const opts = iids.length ? await fetchIn('order_item_options', 'order_item_id', iids, '*') : [];
-    REP.raw = { orders, items, opts, shifts: shiftsQ.data, staff: staffQ.data || [] };
+    REP.raw = { orders, items, opts, shifts: shiftsQ.data, staff: staffQ.data || [], expenses: expQ.data };
     renderLaporan();
   } catch (err) {
     body.innerHTML = `<div class="card"><div class="empty"><b>Gagal muat laporan</b><small>${esc(err.message)}</small></div></div>`;
   }
 }
 function renderLaporan() {
-  const { orders, items, opts, shifts, staff } = REP.raw;
+  const { orders, items, opts, shifts, staff, expenses } = REP.raw;
   const staffName = (id) => staff.find((s) => s.id === id)?.name || '—';
   const paid = orders.filter((o) => o.status === 'paid');
   const voids = orders.filter((o) => o.status === 'void');
@@ -2206,11 +2354,15 @@ function renderLaporan() {
   const pItems = items.filter((i) => paidIds.has(i.order_id));
   const itemQty = new Map(pItems.map((i) => [i.id, i.qty]));
   const pOpts = opts.filter((x) => itemQty.has(x.order_item_id));
+  const exps = (expenses || []).filter((x) => !x.is_deleted);
+  const expDeleted = (expenses || []).filter((x) => x.is_deleted);
 
   const bruto = paid.reduce((a, o) => a + o.subtotal, 0);
   const disc = paid.reduce((a, o) => a + o.discount_amount, 0);
   const neto = paid.reduce((a, o) => a + o.total, 0);
   const aov = paid.length ? Math.round(neto / paid.length) : 0;
+  const totalExp = exps.reduce((a, x) => a + x.amount, 0);
+  const laba = neto - totalExp;
 
   const byKey = (arr, keyFn, valFn) => {
     const m = new Map();
@@ -2268,6 +2420,8 @@ function renderLaporan() {
 
   let h = `<div class="rep-cards">
     ${card('Omzet Neto', fmtRp(neto), true)}
+    ${card('Pengeluaran', '− ' + fmtRp(totalExp))}
+    ${card('Sisa (Neto − Biaya)', fmtRp(laba))}
     ${card('Bruto', fmtRp(bruto))}
     ${card('Diskon', '− ' + fmtRp(disc))}
     ${card('Transaksi', paid.length.toLocaleString('id-ID'))}
@@ -2275,11 +2429,27 @@ function renderLaporan() {
     ${card('Void', voids.length.toLocaleString('id-ID'))}
   </div>`;
 
-  if (!orders.length) {
-    h += '<div class="card"><div class="empty"><div class="emo">📊</div><b>Belum ada transaksi di rentang ini</b></div></div>';
+  if (!orders.length && !exps.length) {
+    h += '<div class="card"><div class="empty"><div class="emo">📊</div><b>Belum ada data di rentang ini</b></div></div>';
     $('laporan-body').innerHTML = h;
     return;
   }
+
+  // Rekap harian: omzet vs pengeluaran vs sisa, per tanggal bisnis
+  const dayMap = new Map();
+  const touch = (d) => {
+    if (!dayMap.has(d)) dayMap.set(d, { trx: 0, neto: 0, exp: 0 });
+    return dayMap.get(d);
+  };
+  paid.forEach((o) => { const r = touch(o.business_date); r.trx += 1; r.neto += o.total; });
+  exps.forEach((x) => { touch(x.business_date).exp += x.amount; });
+  const days = [...dayMap.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
+  h += sec('Rekap harian', tbl(['Tanggal', 'Trx', 'Omzet', 'Biaya', 'Sisa'],
+    days.map(([d, r]) =>
+      `<tr><td>${fmtTgl(d)}</td><td class="tr-num num">${r.trx}</td>
+       <td class="tr-num num">${fmtRp(r.neto)}</td>
+       <td class="tr-num num" style="color:var(--danger)">${r.exp ? '− ' + fmtRp(r.exp) : '—'}</td>
+       <td class="tr-num num"><b>${fmtRp(r.neto - r.exp)}</b></td></tr>`)));
 
   h += sec('Metode bayar',
     r2(`Tunai (${metode.get('cash')?.n || 0} trx)`, fmtRp(metode.get('cash')?.v || 0)) +
@@ -2312,6 +2482,30 @@ function renderLaporan() {
     voids.map((o) =>
       `<tr><td>${esc(o.order_no)}<br><small style="color:var(--muted)">${fmtTgl(o.business_date)} · ${esc(o.cashier_name_snapshot)}</small></td>
        <td class="tr-num num">${fmtRp(o.total)}</td><td class="tr-num">${esc(o.void_reason || '')}</td></tr>`)));
+  // Pengeluaran
+  const expCatMap = new Map();
+  exps.forEach((x) => {
+    const cur = expCatMap.get(x.category_name_snapshot) || { n: 0, v: 0 };
+    cur.n += 1; cur.v += x.amount;
+    expCatMap.set(x.category_name_snapshot, cur);
+  });
+  const expCatRows = [...expCatMap.entries()].sort((a, b) => b[1].v - a[1].v);
+  const expLaci = exps.filter((x) => x.paid_from === 'cash_drawer').reduce((a, x) => a + x.amount, 0);
+  h += sec('Pengeluaran per kategori',
+    (expCatRows.length ? r2('Dari laci kasir', fmtRp(expLaci)) + r2('Dari luar', fmtRp(totalExp - expLaci)) : '') +
+    tbl(['Kategori', 'Jml', 'Total'], expCatRows.map(([n, x]) =>
+      `<tr><td>${esc(n)}</td><td class="tr-num num">${x.n}</td><td class="tr-num num">${fmtRp(x.v)}</td></tr>`)));
+  h += sec('Detail pengeluaran', tbl(['Keterangan', 'Sumber', 'Jumlah'],
+    exps.map((x) =>
+      `<tr><td>${esc(x.description)}<br><small style="color:var(--muted)">${fmtTgl(x.business_date)} · ${esc(x.category_name_snapshot)} · ${esc(x.staff_name_snapshot)}${x.updated_at ? ' · diubah' : ''}</small></td>
+       <td class="tr-num">${x.paid_from === 'cash_drawer' ? 'Laci' : 'Luar'}</td>
+       <td class="tr-num num">${fmtRp(x.amount)}</td></tr>`)));
+  if (expDeleted.length) {
+    h += sec('Pengeluaran dihapus', tbl(['Keterangan', 'Jumlah', 'Alasan'],
+      expDeleted.map((x) =>
+        `<tr><td>${esc(x.description)}<br><small style="color:var(--muted)">${fmtTgl(x.business_date)} · ${esc(x.staff_name_snapshot)}</small></td>
+         <td class="tr-num num">${fmtRp(x.amount)}</td><td class="tr-num">${esc(x.deleted_reason || '')}</td></tr>`)));
+  }
   h += sec('Riwayat shift', tbl(['Shift', 'Kas seharusnya', 'Selisih'],
     shifts.map((s) => {
       const v = s.variance;
@@ -2324,6 +2518,146 @@ function renderLaporan() {
     })));
   $('laporan-body').innerHTML = h;
 }
+
+/* ===== MODUL: PENGELUARAN ===== */
+const EXP = { date: null, list: [], edit: null, src: 'cash_drawer', delTarget: null };
+
+async function loadBiaya() {
+  if (!EXP.date) EXP.date = todayWIB();
+  if (S.role !== 'owner') EXP.date = todayWIB();   // kasir cuma bisa hari ini (dijaga RLS juga)
+  $('exp-date').value = EXP.date;
+  $('exp-date').disabled = S.role !== 'owner';
+  $('btn-exp-prev').disabled = S.role !== 'owner';
+  $('btn-exp-next').disabled = S.role !== 'owner' || EXP.date >= todayWIB();
+  if (!S.expCats) await loadMenu();
+  const list = $('exp-list');
+  list.innerHTML = '<div class="empty"><div class="spinner"></div></div>';
+  const { data, error } = await db.from('expenses')
+    .select('*').eq('business_date', EXP.date).eq('is_deleted', false)
+    .order('created_at');
+  if (error) {
+    list.innerHTML = `<div class="empty"><b>Gagal muat</b><small>${esc(error.message)}</small></div>`;
+    return;
+  }
+  EXP.list = data;
+  renderBiaya();
+}
+function renderBiaya() {
+  const total = EXP.list.reduce((a, x) => a + x.amount, 0);
+  const laci = EXP.list.filter((x) => x.paid_from === 'cash_drawer').reduce((a, x) => a + x.amount, 0);
+  $('exp-total-v').textContent = fmtRp(total);
+  $('exp-total-s').textContent = EXP.list.length
+    ? `${EXP.list.length} catatan · ${fmtRp(laci)} dari laci, ${fmtRp(total - laci)} dari luar`
+    : 'Belum ada pengeluaran di tanggal ini';
+  const list = $('exp-list');
+  if (!EXP.list.length) {
+    list.innerHTML = '<div class="empty"><div class="emo">💸</div><b>Belum ada catatan</b><small>Tiap belanja buah / es / kemasan, catat di sini biar rekap akhir hari akurat.</small></div>';
+    return;
+  }
+  list.innerHTML = EXP.list.map((x) => `
+    <div class="exp-row" data-id="${x.id}">
+      <div>
+        <div class="en">${esc(x.description)}</div>
+        <div class="es">${esc(x.category_name_snapshot)} · ${fmtJam(x.created_at)} · ${esc(x.staff_name_snapshot)}
+          <span class="tag-src${x.paid_from === 'luar' ? ' luar' : ''}">${x.paid_from === 'cash_drawer' ? 'laci' : 'luar'}</span>
+          ${x.updated_at ? '<span class="badge">diubah</span>' : ''}</div>
+      </div>
+      <div class="ev num">− ${fmtRp(x.amount)}</div>
+    </div>`).join('');
+}
+$('exp-list').addEventListener('click', (e) => {
+  const row = e.target.closest('.exp-row[data-id]');
+  if (!row) return;
+  openExpDlg(EXP.list.find((x) => x.id === +row.dataset.id));
+});
+$('btn-exp-add').addEventListener('click', () => openExpDlg(null));
+$('exp-date').addEventListener('change', () => { EXP.date = $('exp-date').value; loadBiaya(); });
+$('btn-exp-prev').addEventListener('click', () => { EXP.date = wibShift(EXP.date, -1); loadBiaya(); });
+$('btn-exp-next').addEventListener('click', () => {
+  if (EXP.date >= todayWIB()) return;
+  EXP.date = wibShift(EXP.date, 1);
+  loadBiaya();
+});
+
+function openExpDlg(x) {
+  if (!requireStaff()) return;
+  EXP.edit = x || null;
+  $('xe-title').textContent = x ? 'Ubah pengeluaran' : 'Catat pengeluaran';
+  $('xe-sub').textContent = fmtTgl(EXP.date) + (x ? ' · ' + esc(x.staff_name_snapshot) : '');
+  const sel = $('xe-cat');
+  sel.innerHTML = (S.expCats || []).map((c) =>
+    `<option value="${c.id}" ${x?.category_id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  $('xe-desc').value = x?.description || '';
+  $('xe-amount').value = x ? x.amount.toLocaleString('id-ID') : '';
+  $('xe-note').value = x?.note || '';
+  EXP.src = x?.paid_from || 'cash_drawer';
+  renderSrcSeg();
+  $('btn-xe-del').classList.toggle('hidden', !x);
+  $('dlg-exp').showModal();
+}
+function renderSrcSeg() {
+  document.querySelectorAll('#seg-src button').forEach((b) =>
+    b.classList.toggle('on', b.dataset.src === EXP.src));
+}
+$('seg-src').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-src]');
+  if (!b) return;
+  EXP.src = b.dataset.src;
+  renderSrcSeg();
+});
+$('btn-xe-cancel').addEventListener('click', () => $('dlg-exp').close());
+$('btn-xe-save').addEventListener('click', async () => {
+  const desc = $('xe-desc').value.trim();
+  const amt = parseRp($('xe-amount').value);
+  if (!desc) { toast('Keterangan wajib diisi', true); return; }
+  if (!amt || amt < 1) { toast('Jumlah harus lebih dari 0', true); return; }
+  const btn = $('btn-xe-save');
+  btn.disabled = true;
+  try {
+    const base = {
+      session_token: S.staff.token,
+      category_id: +$('xe-cat').value,
+      description: desc,
+      amount: amt,
+      paid_from: EXP.src,
+      note: $('xe-note').value.trim() || null,
+    };
+    if (EXP.edit) await rpc('update_expense', { p: { ...base, id: EXP.edit.id } });
+    else await rpc('create_expense', { p: { ...base, business_date: EXP.date } });
+    $('dlg-exp').close();
+    toast(EXP.edit ? 'Catatan diperbarui ✔' : 'Pengeluaran tercatat ✔');
+    await loadBiaya();
+  } catch (err) {
+    if (err.message !== 'SESI_INVALID') toast(err.message, true);
+  } finally { btn.disabled = false; }
+});
+$('btn-xe-del').addEventListener('click', () => {
+  EXP.delTarget = EXP.edit;
+  $('xd-sub').textContent = `${EXP.delTarget.description} · ${fmtRp(EXP.delTarget.amount)}. Datanya ga hilang, tetap kecatet di log owner.`;
+  $('xd-reason').value = '';
+  $('xd-pin').value = '';
+  $('dlg-exp-del').showModal();
+});
+$('btn-xd-cancel').addEventListener('click', () => $('dlg-exp-del').close());
+$('btn-xd-go').addEventListener('click', async () => {
+  const reason = $('xd-reason').value.trim();
+  const pin = $('xd-pin').value.trim();
+  if (!reason) { toast('Alasan wajib diisi', true); return; }
+  if (!pin) { toast('Masukin PIN owner', true); return; }
+  const btn = $('btn-xd-go');
+  btn.disabled = true;
+  try {
+    await rpc('delete_expense', {
+      p_id: EXP.delTarget.id, p_reason: reason, p_owner_pin: pin, p_session_token: S.staff.token,
+    });
+    $('dlg-exp-del').close();
+    $('dlg-exp').close();
+    toast('Catatan dihapus');
+    await loadBiaya();
+  } catch (err) {
+    if (err.message !== 'SESI_INVALID') toast(err.message, true);
+  } finally { btn.disabled = false; }
+});
 
 /* ===== MODUL: INIT ===== */
 bindRpInput($('inp-opening'));
