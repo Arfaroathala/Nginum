@@ -151,8 +151,7 @@ input,select,textarea{font:inherit}
   background:var(--surface);border-top:1px solid var(--line);
   display:flex;justify-content:space-around;
   padding-bottom:env(safe-area-inset-bottom);
-}
-.bottomnav button{
+}.bottomnav button{
   flex:1;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
   font-size:11.5px;font-weight:700;color:var(--muted);max-width:140px;
 }
@@ -349,13 +348,22 @@ code.phrase{background:var(--ink);color:#fff;padding:3px 9px;border-radius:7px;f
 
 /* ===== MODUL: RESPONSIVE ===== */
 @media (min-width:900px){
-  .bottomnav{top:0;bottom:auto;left:auto;right:0;width:auto;position:static}
+  .bottomnav{position:static;border-top:0;background:none;justify-content:flex-end;gap:2px;padding:0;flex:0 0 auto}
+  .bottomnav button{min-height:42px;flex:0 0 auto;flex-direction:row;gap:7px;font-size:13.5px;padding:0 13px;border-radius:11px;max-width:none}
+  .bottomnav button .ni{font-size:16px}
+  .bottomnav button.active{background:var(--green-bg)}
+  .topbar{padding:10px 22px;gap:14px}
+  .topbar .spacer{order:-1}
   #scr-app{padding-bottom:0}
-  .cartbar{position:sticky;bottom:16px;left:0;right:0;margin-top:16px}
-  .topbar{padding:10px 22px}
-  .topbar .bottomnav{background:none;border:0;display:flex;gap:4px}
-  .topbar .bottomnav button{min-height:44px;flex-direction:row;font-size:13.5px;padding:0 14px}
+  .view{padding:24px 22px 40px}
+  .cartbar{position:sticky;bottom:16px;left:0;right:0;margin-top:16px;max-width:420px;margin-left:auto}
+  .rep-cards{grid-template-columns:repeat(3,1fr)}
+  .rep-card.big{grid-column:auto}
   #toast{bottom:24px}
+}
+@media (min-width:1200px){
+  .view{max-width:1080px}
+  .prod-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
 }
 </style>
 </head>
@@ -419,6 +427,7 @@ code.phrase{background:var(--ink);color:#fff;padding:3px 9px;border-radius:7px;f
     <div class="spacer"></div>
     <span id="chip-user" class="chip chip-user hidden"></span>
     <button id="btn-lock" class="icon-btn hidden" title="Kunci layar (ganti kasir)">🔒</button>
+    <nav class="bottomnav" id="bottomnav"></nav>
   </header>
 
   <!-- ===== MODUL: VIEW KASIR ===== -->
@@ -566,7 +575,6 @@ code.phrase{background:var(--ink);color:#fff;padding:3px 9px;border-radius:7px;f
     </div>
   </main>
 
-  <nav class="bottomnav" id="bottomnav"></nav>
 </div>
 
 <!-- ===== MODUL: DIALOG BUKA SHIFT ===== -->
@@ -1007,6 +1015,7 @@ function clearStaff() { S.staff = null; localStorage.removeItem(LS_KEY); }
 
 // Semua panggilan RPC lewat sini: sesi kadaluarsa otomatis balik ke layar PIN.
 async function rpc(fn, args) {
+  if (!navigator.onLine) throw new Error('Ga ada koneksi internet. Cek sinyal/WiFi dulu.');
   const { data, error } = await db.rpc(fn, args);
   if (error) {
     if ((error.message || '').includes('SESI_INVALID')) {
@@ -1014,6 +1023,9 @@ async function rpc(fn, args) {
       toast('Sesi habis, masukin PIN lagi', true);
       showPinScreen();
       throw new Error('SESI_INVALID');
+    }
+    if (/failed to fetch|networkerror|load failed/i.test(error.message || '')) {
+      throw new Error('Koneksi ke server putus. Cek internet, transaksi belum tersimpan.');
     }
     throw new Error(cleanErr(error.message));
   }
@@ -1174,16 +1186,28 @@ function renderUserChip() {
     chip.textContent = '👤 ' + S.staff.name;
     chip.classList.remove('hidden');
     lock.classList.remove('hidden');
+    lock.textContent = '🔒';
+    lock.title = 'Kunci layar (ganti kasir)';
   } else if (S.role === 'owner') {
-    chip.textContent = '👤 Owner (dashboard)';
+    chip.textContent = '👤 Owner';
     chip.classList.remove('hidden');
-    lock.classList.add('hidden');
+    lock.classList.remove('hidden');
+    lock.textContent = '⏻';
+    lock.title = 'Keluar dari akun';
   } else {
     chip.classList.add('hidden');
     lock.classList.add('hidden');
   }
 }
 $('btn-lock').addEventListener('click', async () => {
+  // Tanpa sesi PIN + akun owner => tombol ini artinya keluar dari akun device
+  if (!S.staff && S.role === 'owner') {
+    if (S.cart.items.length && !confirm('Keranjang masih ada isinya. Yakin mau keluar?')) return;
+    await db.auth.signOut();
+    clearCart();
+    S.sistemOpen = false;
+    return;
+  }
   if (S.staff?.token) { try { await rpc('pos_logout', { p_session_token: S.staff.token }); } catch {} }
   clearStaff();
   S.sistemOpen = false;
@@ -3171,6 +3195,24 @@ $('btn-rs-go').addEventListener('click', async () => {
     btn.disabled = false;
     btn.textContent = 'Ya, hapus semua';
   }
+});
+
+/* ===== MODUL: PENGAMAN OPERASIONAL ===== */
+// Cegah tab ketutup / ke-refresh pas keranjang masih ada isinya
+window.addEventListener('beforeunload', (e) => {
+  if (S.cart?.items.length) { e.preventDefault(); e.returnValue = ''; }
+});
+// Status koneksi: kasir harus tau SEBELUM nginput, bukan pas gagal bayar
+window.addEventListener('offline', () => toast('⚠️ Internet putus — transaksi ga bisa disimpan', true));
+window.addEventListener('online', () => { toast('Koneksi balik ✔'); if (S.menu) loadMenu(); });
+// Sinkron ulang menu pas balik ke tab (device lain bisa aja nandain produk habis)
+let lastSync = Date.now();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !S.menu) return;
+  if (Date.now() - lastSync < 60000) return;      // maksimal 1x per menit
+  lastSync = Date.now();
+  loadMenu();
+  refreshShift();
 });
 
 /* ===== MODUL: INIT ===== */
