@@ -4,8 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Nginum POS</title>
+<meta name="theme-color" content="#137A44">
+<meta name="description" content="Kasir Nginum Fresh Juice Bar">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Nginum">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" type="image/png" href="data:image/png;base64,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">
-<link rel="apple-touch-icon" href="data:image/png;base64,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">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -529,7 +536,10 @@ code.phrase{background:var(--ink);color:#fff;padding:3px 9px;border-radius:7px;f
     <div class="card" style="margin-top:12px">
       <div class="shift-row"><span class="k">Versi aplikasi</span><span class="v">Nginum POS 1.0</span></div>
       <div class="shift-row"><span class="k">Zona waktu</span><span class="v">Asia/Jakarta (WIB)</span></div>
-      <div class="shift-actions"><button class="btn btn-ghost" id="btn-sistem-hide">Sembunyikan menu ini</button></div>
+      <div class="shift-actions">
+        <button class="btn btn-primary hidden" id="btn-install">📲 Pasang di layar utama</button>
+        <button class="btn btn-ghost" id="btn-sistem-hide">Sembunyikan menu ini</button>
+      </div>
     </div>
   </main>
 
@@ -3213,6 +3223,49 @@ document.addEventListener('visibilitychange', () => {
   lastSync = Date.now();
   loadMenu();
   refreshShift();
+});
+
+/* ===== MODUL: PWA (INSTALL & UPDATE) ===== */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      // Ada versi baru? Kabarin, TAPI jangan reload paksa —
+      // reload di tengah transaksi bisa bikin kasir kehilangan keranjang.
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            toast('Versi baru siap — tutup lalu buka lagi aplikasinya');
+          }
+        });
+      });
+    }).catch(() => {});
+  });
+}
+// Tawarin pasang ke home screen (Android/Chrome). iOS lewat Share > Add to Home Screen.
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const b = $('btn-install');
+  if (b) b.classList.remove('hidden');
+});
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  const b = $('btn-install');
+  if (b) b.classList.add('hidden');
+  toast('Nginum POS terpasang 🎉');
+});
+$('btn-install').addEventListener('click', async () => {
+  if (!deferredPrompt) {
+    toast('Buka menu browser → "Tambahkan ke Layar Utama"');
+    return;
+  }
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  $('btn-install').classList.add('hidden');
 });
 
 /* ===== MODUL: INIT ===== */
